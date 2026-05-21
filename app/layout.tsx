@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Tasks Dashboard — Homeland Group",
+  title: "Homeland Dashboard — Homeland Group",
   description: "All tasks across projects, towers, areas and sub-areas.",
 };
 

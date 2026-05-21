@@ -60,7 +60,7 @@ export default function Dashboard() {
     <div className="container">
       <header className="app">
         <div>
-          <h1>Tasks Dashboard</h1>
+          <h1>Homeland Dashboard</h1>
           <div className="sub">
             Homeland Group — all tasks across projects, towers and areas.
           </div>
