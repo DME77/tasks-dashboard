@@ -10,6 +10,26 @@ export default function Dashboard() {
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [projects, setProjects] = useState<ProjectNode[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("theme") as "dark" | "light" | null;
+    if (saved === "light") {
+      setTheme("light");
+      document.documentElement.setAttribute("data-theme", "light");
+    }
+  }, []);
+
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    if (next === "light") {
+      document.documentElement.setAttribute("data-theme", "light");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+    localStorage.setItem("theme", next);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -45,7 +65,12 @@ export default function Dashboard() {
             Homeland Group — all tasks across projects, towers and areas.
           </div>
         </div>
-        <div className="sub">Loaded at {lastUpdated}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
+            {theme === "dark" ? "☀️" : "🌙"}
+          </button>
+          <div className="sub">Loaded at {lastUpdated}</div>
+        </div>
       </header>
 
       {error && <div className="error">Error loading data: {error}</div>}

@@ -12,6 +12,20 @@
   --red: #f87171;
 }
 
+[data-theme="light"] {
+  --bg: #f0f4ff;
+  --panel: #ffffff;
+  --panel-2: #e4eaf8;
+  --border: #ccd4ee;
+  --text: #1a2040;
+  --muted: #5a6890;
+  --accent: #2563eb;
+  --accent-2: #7c3aed;
+  --green: #16a34a;
+  --amber: #d97706;
+  --red: #dc2626;
+}
+
 * { box-sizing: border-box; }
 html, body {
   margin: 0;
@@ -237,4 +251,18 @@ table.tasks tbody tr:hover { background: rgba(110,168,255,0.05); }
   color: var(--muted);
   font-size: 12px;
   text-align: center;
+}
+
+.theme-toggle {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.2s, border-color 0.2s;
+}
+.theme-toggle:hover {
+  background: var(--border);
 }
