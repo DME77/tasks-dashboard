@@ -3,6 +3,9 @@ import { pgGet } from "@/lib/postgrest";
 
 export const dynamic = "force-dynamic";
 
+const PROJECT_ID = "cmnjvabgp0077keve33sbnh4c";
+
+// !inner joins so the project filter propagates through the hierarchy
 const SELECT =
   "select=" +
   [
@@ -15,9 +18,9 @@ const SELECT =
     "createdAt",
     "taskWeight",
     "order",
-    "SubArea(subAreaId,subAreaName,Area(areaId,areaName,Tower(towerId,towerName,Project(projectId,projectName,projectStatus))))",
+    "SubArea!inner(subAreaId,subAreaName,Area!inner(areaId,areaName,Tower!inner(towerId,towerName,Project!inner(projectId,projectName,projectStatus))))",
     "Department(Id,name)",
-    "User(userId,firstName,lastName)"
+    "User(userId,firstName,lastName)",
   ].join(",");
 
 export async function GET() {
@@ -27,7 +30,7 @@ export async function GET() {
     let all: any[] = [];
     while (true) {
       const batch = await pgGet(
-        `/Task?${SELECT}&order=createdAt.desc&limit=${PAGE}&offset=${offset}`
+        `/Task?${SELECT}&SubArea.Area.Tower.Project.projectId=eq.${PROJECT_ID}&order=createdAt.desc&limit=${PAGE}&offset=${offset}`
       );
       all = all.concat(batch);
       if (batch.length < PAGE) break;

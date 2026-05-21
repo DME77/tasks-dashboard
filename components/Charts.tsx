@@ -11,15 +11,17 @@ import {
   Pie,
   Cell,
   Legend,
-  LineChart,
+  ComposedChart,
+  Area,
   Line,
   CartesianGrid,
 } from "recharts";
 import type { Task } from "./types";
 
-const PALETTE = ["#6ea8ff", "#8a7dff", "#4ade80", "#fbbf24", "#f87171", "#22d3ee", "#f472b6", "#a3e635", "#facc15"];
-
-function byKey(tasks: Task[], keyer: (t: Task) => string | undefined) {
+function byKey(
+  tasks: Task[],
+  keyer: (t: Task) => string | undefined
+): { name: string; total: number; completed: number }[] {
   const out = new Map<string, { name: string; total: number; completed: number }>();
   for (const t of tasks) {
     const k = keyer(t) || "—";
@@ -31,20 +33,43 @@ function byKey(tasks: Task[], keyer: (t: Task) => string | undefined) {
   return [...out.values()].sort((a, b) => b.total - a.total);
 }
 
-export default function Charts({ tasks }: { tasks: Task[] }) {
-  const byDept = useMemo(() => byKey(tasks, (t) => t.Department?.name), [tasks]);
-  const byProject = useMemo(
-    () => byKey(tasks, (t) => t.SubArea?.Area?.Tower?.Project?.projectName),
+export default function Charts({
+  tasks,
+  theme,
+}: {
+  tasks: Task[];
+  theme: "dark" | "light";
+}) {
+  const isDark = theme === "dark";
+
+  // Theme-aware chart colours
+  const tooltipStyle = {
+    background: isDark ? "#182142" : "#ffffff",
+    border: `1px solid ${isDark ? "#25305a" : "#ccd4ee"}`,
+    borderRadius: 8,
+    color: isDark ? "#e6ecff" : "#1a2040",
+  };
+  const gridColor = isDark ? "#25305a" : "#ccd4ee";
+  const axisColor = isDark ? "#9aa6cc" : "#5a6890";
+
+  // ── Data derivations ───────────────────────────────────────────────────
+  const byTower = useMemo(
+    () => byKey(tasks, (t) => t.SubArea?.Area?.Tower?.towerName),
     [tasks]
   );
+
+  const byArea = useMemo(
+    () => byKey(tasks, (t) => t.SubArea?.Area?.areaName),
+    [tasks]
+  );
+
   const statusData = useMemo(() => {
-    const total = tasks.length;
     const completed = tasks.filter((t) => t.completed).length;
     const now = Date.now();
     const overdue = tasks.filter(
       (t) => !t.completed && t.endDate && new Date(t.endDate).getTime() < now
     ).length;
-    const pending = total - completed - overdue;
+    const pending = tasks.length - completed - overdue;
     return [
       { name: "Completed", value: completed, color: "#4ade80" },
       { name: "Pending", value: pending, color: "#6ea8ff" },
@@ -52,97 +77,185 @@ export default function Charts({ tasks }: { tasks: Task[] }) {
     ].filter((d) => d.value > 0);
   }, [tasks]);
 
-  const trend = useMemo(() => {
-    // Last 30 days of completions
-    const days: { day: string; count: number }[] = [];
+  // Cumulative burn-up: weekly snapshots from first task creation → today
+  const cumulativeProgress = useMemo(() => {
+    if (!tasks.length) return [];
+
+    const sorted = [...tasks].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+    const startDate = new Date(sorted[0].createdAt);
+    startDate.setHours(0, 0, 0, 0);
+
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const counts = new Map<string, number>();
-    for (const t of tasks) {
-      if (!t.completed || !t.completedAt) continue;
-      const d = new Date(t.completedAt);
-      d.setHours(0, 0, 0, 0);
-      const key = d.toISOString().slice(0, 10);
-      counts.set(key, (counts.get(key) || 0) + 1);
+    today.setHours(23, 59, 59, 999);
+
+    const result: { week: string; total: number; completed: number }[] = [];
+    const cursor = new Date(startDate);
+
+    while (cursor <= today) {
+      const cutoff = cursor.getTime();
+      const label = cursor.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      });
+      const total = tasks.filter(
+        (t) => new Date(t.createdAt).getTime() <= cutoff
+      ).length;
+      const completed = tasks.filter(
+        (t) =>
+          t.completed &&
+          t.completedAt &&
+          new Date(t.completedAt).getTime() <= cutoff
+      ).length;
+      result.push({ week: label, total, completed });
+      cursor.setDate(cursor.getDate() + 7);
     }
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
-      days.push({ day: key.slice(5), count: counts.get(key) || 0 });
-    }
-    return days;
+
+    return result;
   }, [tasks]);
+
+  const tickInterval = Math.max(0, Math.floor(cumulativeProgress.length / 8) - 1);
+
+  // Dynamic height for area chart (so many areas don't overflow)
+  const areaChartHeight = Math.max(220, byArea.length * 34 + 40);
 
   return (
     <>
-      <div className="grid-2">
-        <div className="panel">
-          <h3>Tasks by department</h3>
-          <div style={{ width: "100%", height: 260 }}>
-            <ResponsiveContainer>
-              <BarChart data={byDept} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
-                <CartesianGrid stroke="#25305a" strokeDasharray="3 3" />
-                <XAxis dataKey="name" stroke="#9aa6cc" tick={{ fontSize: 11 }} interval={0} angle={-15} textAnchor="end" height={60} />
-                <YAxis stroke="#9aa6cc" tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ background: "#182142", border: "1px solid #25305a", borderRadius: 8 }} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="completed" stackId="a" fill="#4ade80" name="Completed" />
-                <Bar dataKey="total" stackId="b" fill="#6ea8ff" name="Total" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      {/* ── Cumulative progress (full width, hero chart) ──────────────── */}
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <h3>Project Progress Over Time</h3>
+        <div style={{ width: "100%", height: 300 }}>
+          <ResponsiveContainer>
+            <ComposedChart
+              data={cumulativeProgress}
+              margin={{ top: 8, right: 24, bottom: 8, left: 0 }}
+            >
+              <defs>
+                <linearGradient id="completedGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#4ade80" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#4ade80" stopOpacity={0.03} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+              <XAxis
+                dataKey="week"
+                stroke={axisColor}
+                tick={{ fontSize: 11 }}
+                interval={tickInterval}
+              />
+              <YAxis stroke={axisColor} tick={{ fontSize: 11 }} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              {/* Total tasks — dashed reference line */}
+              <Line
+                type="monotone"
+                dataKey="total"
+                stroke="#6ea8ff"
+                strokeWidth={2}
+                strokeDasharray="6 4"
+                dot={false}
+                name="Total tasks"
+              />
+              {/* Completed — filled area */}
+              <Area
+                type="monotone"
+                dataKey="completed"
+                fill="url(#completedGrad)"
+                stroke="#4ade80"
+                strokeWidth={2.5}
+                dot={false}
+                name="Completed"
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
+      </div>
 
+      {/* ── Status pie + Tasks by tower ───────────────────────────────── */}
+      <div className="grid-2">
         <div className="panel">
           <h3>Status breakdown</h3>
           <div style={{ width: "100%", height: 260 }}>
             <ResponsiveContainer>
               <PieChart>
-                <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                <Pie
+                  data={statusData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={85}
+                  label={({ name, percent }) =>
+                    `${name} ${Math.round(percent * 100)}%`
+                  }
+                  labelLine={false}
+                >
                   {statusData.map((d, i) => (
                     <Cell key={i} fill={d.color} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ background: "#182142", border: "1px solid #25305a", borderRadius: 8 }} />
+                <Tooltip contentStyle={tooltipStyle} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
-      </div>
 
-      <div className="grid-2">
         <div className="panel">
-          <h3>Tasks by project</h3>
-          <div style={{ width: "100%", height: 240 }}>
+          <h3>Tasks by tower</h3>
+          <div style={{ width: "100%", height: 260 }}>
             <ResponsiveContainer>
-              <BarChart data={byProject} layout="vertical" margin={{ top: 8, right: 16, bottom: 8, left: 80 }}>
-                <CartesianGrid stroke="#25305a" strokeDasharray="3 3" />
-                <XAxis type="number" stroke="#9aa6cc" tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="name" stroke="#9aa6cc" tick={{ fontSize: 11 }} width={140} />
-                <Tooltip contentStyle={{ background: "#182142", border: "1px solid #25305a", borderRadius: 8 }} />
+              <BarChart
+                data={byTower}
+                margin={{ top: 8, right: 8, bottom: 40, left: 0 }}
+              >
+                <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="name"
+                  stroke={axisColor}
+                  tick={{ fontSize: 11 }}
+                  interval={0}
+                  angle={-20}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis stroke={axisColor} tick={{ fontSize: 11 }} />
+                <Tooltip contentStyle={tooltipStyle} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="completed" fill="#4ade80" name="Completed" />
-                <Bar dataKey="total" fill="#6ea8ff" name="Total" />
+                <Bar dataKey="completed" fill="#4ade80" name="Completed" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="total" fill="#6ea8ff" name="Total" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
+      </div>
 
-        <div className="panel">
-          <h3>Completions — last 30 days</h3>
-          <div style={{ width: "100%", height: 240 }}>
-            <ResponsiveContainer>
-              <LineChart data={trend} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
-                <CartesianGrid stroke="#25305a" strokeDasharray="3 3" />
-                <XAxis dataKey="day" stroke="#9aa6cc" tick={{ fontSize: 11 }} interval={4} />
-                <YAxis stroke="#9aa6cc" tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ background: "#182142", border: "1px solid #25305a", borderRadius: 8 }} />
-                <Line type="monotone" dataKey="count" stroke="#8a7dff" strokeWidth={2} dot={false} name="Completed" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+      {/* ── Tasks by area (horizontal bar) ───────────────────────────── */}
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <h3>Tasks by area</h3>
+        <div style={{ width: "100%", height: areaChartHeight }}>
+          <ResponsiveContainer>
+            <BarChart
+              data={byArea}
+              layout="vertical"
+              margin={{ top: 8, right: 24, bottom: 8, left: 8 }}
+            >
+              <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
+              <XAxis type="number" stroke={axisColor} tick={{ fontSize: 11 }} />
+              <YAxis
+                type="category"
+                dataKey="name"
+                stroke={axisColor}
+                tick={{ fontSize: 11 }}
+                width={160}
+              />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="completed" fill="#4ade80" name="Completed" radius={[0, 3, 3, 0]} />
+              <Bar dataKey="total" fill="#6ea8ff" name="Total" radius={[0, 3, 3, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </>

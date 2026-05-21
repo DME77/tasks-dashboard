@@ -1,5 +1,5 @@
 "use client";
-import type { Task } from "./types";
+import type { Task, ActiveFilter } from "./types";
 
 function isOverdue(t: Task) {
   if (t.completed) return false;
@@ -7,38 +7,116 @@ function isOverdue(t: Task) {
   return new Date(t.endDate).getTime() < Date.now();
 }
 
-export default function KPIs({ tasks }: { tasks: Task[] }) {
-  const total = tasks.length;
-  const completed = tasks.filter((t) => t.completed).length;
-  const pending = total - completed;
-  const overdue = tasks.filter(isOverdue).length;
-  const pct = total ? Math.round((completed / total) * 100) : 0;
+interface KpiItem {
+  label: string;
+  value: number;
+  delta?: string;
+  icon: string;
+  colorClass: string;        // kpi-blue | kpi-green | kpi-gray | kpi-red | kpi-amber
+  filter?: ActiveFilter;
+}
 
-  const now = Date.now();
-  const sevenDayMs = 7 * 24 * 60 * 60 * 1000;
+export default function KPIs({
+  tasks,
+  selected,
+  onSelect,
+}: {
+  tasks: Task[];
+  selected: ActiveFilter;
+  onSelect: (f: ActiveFilter) => void;
+}) {
+  const total     = tasks.length;
+  const completed = tasks.filter((t) => t.completed).length;
+  const overdue   = tasks.filter(isOverdue).length;
+  const pending   = total - completed - overdue;
+  const pct       = total ? Math.round((completed / total) * 100) : 0;
+
+  const now          = Date.now();
+  const sevenDayMs   = 7 * 24 * 60 * 60 * 1000;
   const completedThisWeek = tasks.filter(
-    (t) => t.completed && t.completedAt && now - new Date(t.completedAt).getTime() < sevenDayMs
+    (t) =>
+      t.completed &&
+      t.completedAt &&
+      now - new Date(t.completedAt).getTime() < sevenDayMs
   ).length;
 
-  const items = [
-    { label: "Total tasks", value: total },
-    { label: "Completed", value: completed, delta: `${pct}% done` },
-    { label: "Pending", value: pending },
-    { label: "Overdue", value: overdue, accent: overdue > 0 ? "red" : undefined },
-    { label: "Done last 7 days", value: completedThisWeek },
+  const items: KpiItem[] = [
+    {
+      label: "Total Tasks",
+      value: total,
+      icon: "📋",
+      colorClass: "kpi-blue",
+    },
+    {
+      label: "Completed",
+      value: completed,
+      delta: `${pct}% of all tasks`,
+      icon: "✅",
+      colorClass: "kpi-green",
+      filter: "completed",
+    },
+    {
+      label: "Pending",
+      value: pending,
+      delta: "In progress",
+      icon: "🔄",
+      colorClass: "kpi-gray",
+      filter: "pending",
+    },
+    {
+      label: "Overdue",
+      value: overdue,
+      delta: overdue > 0 ? "Needs attention" : "All on track",
+      icon: "⚠️",
+      colorClass: "kpi-red",
+      filter: "overdue",
+    },
+    {
+      label: "Done last 7 days",
+      value: completedThisWeek,
+      delta: "Recent activity",
+      icon: "📅",
+      colorClass: "kpi-amber",
+      filter: "week",
+    },
   ];
 
   return (
     <div className="kpis">
-      {items.map((it) => (
-        <div className="kpi" key={it.label}>
-          <div className="label">{it.label}</div>
-          <div className="value" style={it.accent === "red" ? { color: "var(--red)" } : undefined}>
-            {it.value}
+      {items.map((it) => {
+        const isActive = it.filter != null && selected === it.filter;
+        return (
+          <div
+            key={it.label}
+            className={[
+              "kpi",
+              it.colorClass,
+              it.filter ? "clickable" : "",
+              isActive ? "active" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            onClick={() => it.filter && onSelect(it.filter)}
+            title={
+              it.filter
+                ? isActive
+                  ? "Click to close"
+                  : `Click to see ${it.label.toLowerCase()}`
+                : undefined
+            }
+          >
+            <span className="kpi-icon">{it.icon}</span>
+            <div className="label">{it.label}</div>
+            <div className="value">{it.value}</div>
+            {it.delta && <div className="delta">{it.delta}</div>}
+            {it.filter && (
+              <div className="kpi-action">
+                {isActive ? "Hide ▲" : "View all →"}
+              </div>
+            )}
           </div>
-          {it.delta && <div className="delta">{it.delta}</div>}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

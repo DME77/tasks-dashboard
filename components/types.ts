@@ -29,6 +29,8 @@ export type Task = {
   User?: { userId: string; firstName: string; lastName: string } | null;
 };
 
+export type ActiveFilter = "completed" | "pending" | "overdue" | "week" | null;
+
 export type SubAreaNode = { subAreaId: string; subAreaName: string; subAreaStatus: string };
 export type AreaNode = { areaId: string; areaName: string; areaStatus: string; SubArea: SubAreaNode[] };
 export type TowerNode = { towerId: string; towerName: string; towerStatus: string; Area: AreaNode[] };

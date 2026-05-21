@@ -2,8 +2,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Homeland Dashboard — Homeland Group",
-  description: "All tasks across projects, towers, areas and sub-areas.",
+  title: "Homeland Global Park — Homeland Group",
+  description: "Project dashboard for Homeland Global Park — tasks across towers, areas and sub-areas.",
 };
 
 export default function RootLayout({
