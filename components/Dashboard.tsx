@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import KPIs from "./KPIs";
 import Charts from "./Charts";
 import TaskTable from "./TaskTable";
 import DrillDown from "./DrillDown";
+import Billing from "./Billing";
 import type { Task, ProjectNode, TowerNode, AreaNode, ActiveFilter } from "./types";
 
 /* ── Constants ──────────────────────────────────────────────────────────────── */
@@ -14,6 +15,7 @@ const TABS = [
   { id: "overview",   label: "Overview",   icon: "📊" },
   { id: "tasks",      label: "Tasks",      icon: "✅" },
   { id: "hierarchy",  label: "Hierarchy",  icon: "🌳" },
+  { id: "billing",    label: "Billing",    icon: "💰" },
 ] as const;
 type TabId = typeof TABS[number]["id"];
 
@@ -43,6 +45,7 @@ export default function Dashboard() {
   const [selectedTower, setSelectedTower] = useState<string | null>(null); // towerId
   const [selectedArea,  setSelectedArea]  = useState<string | null>(null); // areaId
   const [activeFilter,  setActiveFilter]  = useState<ActiveFilter>(null);
+  const [refreshing,    setRefreshing]    = useState(false);
 
   /* ── Theme persistence ──────────────────────────────────────────────────── */
   useEffect(() => {
@@ -60,26 +63,26 @@ export default function Dashboard() {
   }, [theme]);
 
   /* ── Data loading ───────────────────────────────────────────────────────── */
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const [t, h] = await Promise.all([
-          fetch("/api/tasks").then((r) => r.json()),
-          fetch("/api/hierarchy").then((r) => r.json()),
-        ]);
-        if (cancelled) return;
-        if (t.error) throw new Error(t.error);
-        if (h.error) throw new Error(h.error);
-        setTasks(t.tasks || []);
-        setProjects(h.projects || []);
-      } catch (e: any) {
-        setError(e.message || String(e));
-      }
+  const loadData = useCallback(async () => {
+    setRefreshing(true);
+    setError(null);
+    try {
+      const [t, h] = await Promise.all([
+        fetch("/api/tasks").then((r) => r.json()),
+        fetch("/api/hierarchy").then((r) => r.json()),
+      ]);
+      if (t.error) throw new Error(t.error);
+      if (h.error) throw new Error(h.error);
+      setTasks(t.tasks || []);
+      setProjects(h.projects || []);
+    } catch (e: any) {
+      setError(e.message || String(e));
+    } finally {
+      setRefreshing(false);
     }
-    load();
-    return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   /* ── Derived data ───────────────────────────────────────────────────────── */
 
@@ -212,6 +215,15 @@ export default function Dashboard() {
             </span>
             <button
               className="theme-btn"
+              onClick={loadData}
+              disabled={refreshing}
+              title="Refresh data"
+              style={{ opacity: refreshing ? 0.6 : 1 }}
+            >
+              {refreshing ? "⟳" : "🔄"}
+            </button>
+            <button
+              className="theme-btn"
               onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
               title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
             >
@@ -247,8 +259,8 @@ export default function Dashboard() {
 
         {filteredTasks && (
           <>
-            {/* ── Tower category cards (Level 1) ────────────────────────── */}
-            <section className="category-section">
+            {/* ── Tower / Area category cards — hidden on Billing tab ─── */}
+            {activeTab !== "billing" && <><section className="category-section">
               <div className="section-header">
                 <span className="section-title">🏗️ All Towers</span>
                 <span className="live-chip">LIVE</span>
@@ -365,8 +377,7 @@ export default function Dashboard() {
                 </div>
               </section>
             )}
-
-            {/* ══ Tab content ═══════════════════════════════════════════════ */}
+            </>}
 
             {/* ── OVERVIEW tab ─────────────────────────────────────────────── */}
             {activeTab === "overview" && (
@@ -412,6 +423,11 @@ export default function Dashboard() {
                 <h3>🌳 Project Hierarchy</h3>
                 <DrillDown projects={projects || []} tasks={filteredTasks} />
               </div>
+            )}
+
+            {/* ── BILLING tab ───────────────────────────────────────────────── */}
+            {activeTab === "billing" && (
+              <Billing theme={theme} />
             )}
           </>
         )}
