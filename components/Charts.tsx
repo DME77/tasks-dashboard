@@ -65,9 +65,10 @@ export default function Charts({
 
   const statusData = useMemo(() => {
     const completed = tasks.filter((t) => t.completed).length;
-    const now = Date.now();
+    const d = new Date();
+    const midnight = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
     const overdue = tasks.filter(
-      (t) => !t.completed && t.endDate && new Date(t.endDate).getTime() < now
+      (t) => !t.completed && t.endDate && new Date(t.endDate).getTime() < midnight
     ).length;
     const pending = tasks.length - completed - overdue;
     return [

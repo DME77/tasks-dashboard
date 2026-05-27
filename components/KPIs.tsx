@@ -1,10 +1,16 @@
 "use client";
 import type { Task, ActiveFilter } from "./types";
 
+function todayMidnight() {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
 function isOverdue(t: Task) {
   if (t.completed) return false;
   if (!t.endDate) return false;
-  return new Date(t.endDate).getTime() < Date.now();
+  // Overdue = due date is strictly BEFORE today (past days only)
+  // Today's tasks remain "pending" until the day is over
+  return new Date(t.endDate).getTime() < todayMidnight();
 }
 
 interface KpiItem {

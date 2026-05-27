@@ -157,13 +157,17 @@ export default function Dashboard() {
     if (!filteredTasks || !activeFilter) return [];
     const now = Date.now();
     const sevenDayMs = 7 * 24 * 60 * 60 * 1000;
+    const d = new Date();
+    const midnight = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
     switch (activeFilter) {
       case "completed": return filteredTasks.filter((t) => t.completed);
       case "pending":   return filteredTasks.filter(
-        (t) => !t.completed && !(t.endDate && new Date(t.endDate).getTime() < now)
+        // Pending = not completed AND (no due date OR due date is today or future)
+        (t) => !t.completed && !(t.endDate && new Date(t.endDate).getTime() < midnight)
       );
       case "overdue":   return filteredTasks.filter(
-        (t) => !t.completed && t.endDate && new Date(t.endDate).getTime() < now
+        // Overdue = not completed AND due date is strictly before today
+        (t) => !t.completed && t.endDate && new Date(t.endDate).getTime() < midnight
       );
       case "week":      return filteredTasks.filter(
         (t) => t.completed && t.completedAt &&

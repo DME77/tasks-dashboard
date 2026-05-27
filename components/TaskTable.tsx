@@ -25,7 +25,12 @@ function mgrOf(t: Task) {
 }
 function statusOf(t: Task): "completed" | "overdue" | "pending" {
   if (t.completed) return "completed";
-  if (t.endDate && new Date(t.endDate).getTime() < Date.now()) return "overdue";
+  if (t.endDate) {
+    const d = new Date();
+    const midnight = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    // Overdue = due date strictly before today; today's due date stays "pending"
+    if (new Date(t.endDate).getTime() < midnight) return "overdue";
+  }
   return "pending";
 }
 function fmtDate(s: string | null | undefined) {

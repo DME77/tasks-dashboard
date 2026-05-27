@@ -21,6 +21,7 @@ interface DailyBilling {
   dayMasonAmt: number; dayHelperAmt: number; daySupAmt: number; dayCookAmt: number; dayAmount: number;
   nightMasonAmt: number; nightHelperAmt: number; nightAmount: number;
   totalAmount: number;
+  nightCategoryLabel: string;
   workTypes: WorkTypeEntry[];
 }
 interface ActivityItem { name: string; unit: string; quantity: number }
@@ -120,47 +121,7 @@ function SectionBadge({ color, label }: { color: string; label: string }) {
   );
 }
 
-/* ── Labour expenditure table ────────────────────────────────────────────── */
-function LabourTable({
-  rows, totalWorkers, totalAmt, hasAmounts,
-}: {
-  rows: { label: string; workers: number; amt: number }[];
-  totalWorkers: number; totalAmt: number; hasAmounts: boolean;
-}) {
-  const visible = rows.filter((r) => r.workers > 0 || r.amt > 0);
-  if (!visible.length) return <p style={{ color: "var(--muted)", fontSize: 13 }}>No workers recorded.</p>;
-  return (
-    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-      <thead>
-        <tr style={{ background: "var(--sidebar-bg)" }}>
-          {["Category", "Workers", "Amount"].map((h) => (
-            <th key={h} style={{ padding: "7px 12px", textAlign: h === "Category" ? "left" : "right", borderBottom: "2px solid var(--border)", color: "var(--muted)", fontWeight: 600, fontSize: 11 }}>{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {visible.map((r, i) => (
-          <tr key={r.label} style={{ background: i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
-            <td style={{ padding: "7px 12px", borderBottom: "1px solid var(--border)", fontWeight: 500 }}>{r.label}</td>
-            <td style={{ padding: "7px 12px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>{r.workers}</td>
-            <td style={{ padding: "7px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 600, color: "#4ade80" }}>
-              {hasAmounts && r.amt > 0 ? fmt(r.amt) : "—"}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-      <tfoot>
-        <tr style={{ background: "var(--sidebar-bg)", fontWeight: 700 }}>
-          <td style={{ padding: "8px 12px", borderTop: "2px solid var(--border)" }}>TOTAL</td>
-          <td style={{ padding: "8px 12px", textAlign: "right", borderTop: "2px solid var(--border)" }}>{totalWorkers}</td>
-          <td style={{ padding: "8px 12px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#4ade80", fontSize: 14 }}>
-            {totalAmt > 0 ? fmt(totalAmt) : "—"}
-          </td>
-        </tr>
-      </tfoot>
-    </table>
-  );
-}
+/* ── LabourTable removed — replaced by LabourSection + CategoryRow in DLRDay ── */
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* ── DLR All (master overview) ──────────────────────────────────────────── */
@@ -287,78 +248,155 @@ function DLRAll({ daily, summary, theme }: { daily: DailyBilling[]; summary: Bil
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* ── DLR Day (single-date drill-down) ───────────────────────────────────── */
 /* ═══════════════════════════════════════════════════════════════════════════ */
-function DLRDay({ row }: { row: DailyBilling }) {
-  const hasDayAmts   = (row.dayMasonAmt + row.dayHelperAmt + row.daySupAmt + row.dayCookAmt) > 0;
-  const hasNightAmts = (row.nightMasonAmt + row.nightHelperAmt) > 0;
-  const hasWorkTypes = row.workTypes.length > 0;
+function CategoryRow({
+  icon, label, workers, amt, color, isTotal,
+}: {
+  icon: string; label: string; workers: number; amt: number;
+  color: string; isTotal?: boolean;
+}) {
+  return (
+    <tr style={{
+      background: isTotal ? "var(--sidebar-bg)" : "transparent",
+      fontWeight: isTotal ? 700 : 400,
+      borderTop: isTotal ? "2px solid var(--border)" : undefined,
+    }}>
+      <td style={{ padding: "9px 14px", borderBottom: "1px solid var(--border)" }}>
+        <span style={{ fontSize: 14, marginRight: 6 }}>{icon}</span>
+        <span style={{ fontSize: 13, fontWeight: isTotal ? 700 : 500 }}>{label}</span>
+      </td>
+      <td style={{ padding: "9px 14px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>
+        <span style={{ fontSize: 15, fontWeight: 600, color }}>{workers || "—"}</span>
+      </td>
+      <td style={{ padding: "9px 14px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>
+        {amt > 0
+          ? <span style={{ fontSize: 14, fontWeight: 600, color: "#4ade80" }}>{fmt(amt)}</span>
+          : <span style={{ color: "var(--muted)", fontSize: 12 }}>—</span>}
+      </td>
+    </tr>
+  );
+}
 
-  const dayRows = [
-    { label: "🧱 Mason",       workers: row.dayMason,  amt: row.dayMasonAmt  },
-    { label: "🔧 Helper",      workers: row.dayHelper, amt: row.dayHelperAmt },
-    { label: "👷 SUP/FOR",     workers: row.daySup,    amt: row.daySupAmt    },
-    { label: "🍳 Cook",        workers: row.dayCook,   amt: row.dayCookAmt   },
+function LabourSection({
+  badge, badgeColor, categories, totalWorkers, totalAmt,
+}: {
+  badge: string; badgeColor: string;
+  categories: { icon: string; label: string; workers: number; amt: number }[];
+  totalWorkers: number; totalAmt: number;
+}) {
+  const visible = categories.filter(c => c.workers > 0 || c.amt > 0);
+  return (
+    <div className="panel" style={{ marginBottom: 16 }}>
+      <SectionBadge color={badgeColor} label={badge} />
+      {visible.length === 0
+        ? <p style={{ color: "var(--muted)", fontSize: 13 }}>No workers recorded.</p>
+        : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "var(--sidebar-bg)" }}>
+                {["Category", "Workers", "Expense"].map(h => (
+                  <th key={h} style={{
+                    padding: "7px 14px", textAlign: h === "Category" ? "left" : "right",
+                    borderBottom: "2px solid var(--border)",
+                    color: "var(--muted)", fontWeight: 600, fontSize: 11,
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map(c => (
+                <CategoryRow key={c.label} icon={c.icon} label={c.label}
+                  workers={c.workers} amt={c.amt} color={badgeColor} />
+              ))}
+            </tbody>
+            <tfoot>
+              <CategoryRow icon="∑" label="TOTAL" workers={totalWorkers}
+                amt={totalAmt} color={badgeColor} isTotal />
+            </tfoot>
+          </table>
+        )}
+    </div>
+  );
+}
+
+function DLRDay({ row }: { row: DailyBilling }) {
+  const hasWorkTypes = row.workTypes.length > 0;
+  const nightLabel   = row.nightCategoryLabel || "Night Supply Labour";
+
+  const dayCats = [
+    { icon: "🧱", label: "Mason",   workers: row.dayMason,  amt: row.dayMasonAmt  },
+    { icon: "🔧", label: "Helper",  workers: row.dayHelper, amt: row.dayHelperAmt },
+    { icon: "👷", label: "SUP/FOR", workers: row.daySup,    amt: row.daySupAmt    },
+    { icon: "🍳", label: "Cook",    workers: row.dayCook,   amt: row.dayCookAmt   },
   ];
-  const nightRows = [
-    { label: "🧱 Mason (Night)",  workers: row.nightMason,  amt: row.nightMasonAmt  },
-    { label: "🔧 Helper (Night)", workers: row.nightHelper, amt: row.nightHelperAmt },
+  const nightCats = [
+    { icon: "🧱", label: "MAS (Mason)",   workers: row.nightMason,  amt: row.nightMasonAmt  },
+    { icon: "🔧", label: "HELPER",        workers: row.nightHelper, amt: row.nightHelperAmt },
   ];
 
   return (
     <div>
-      {/* ── Summary strip ──────────────────────────────────────────────── */}
-      <div style={{
-        display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
-        gap: 12, marginBottom: 20,
-      }}>
+      {/* ── Summary KPI strip ──────────────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))", gap: 12, marginBottom: 20 }}>
         {[
-          { icon: "☀️", label: "Day Workers",    value: String(row.dayWorkers),   color: "#6ea8ff" },
-          { icon: "🌙", label: "Night Workers",  value: String(row.nightWorkers), color: "#a78bfa" },
-          { icon: "👥", label: "Total Workers",  value: String(row.totalWorkers), color: "var(--text)" },
-          { icon: "💰", label: "Day Labour",     value: row.dayAmount   > 0 ? fmt(row.dayAmount)   : "—", color: "#6ea8ff" },
-          { icon: "💜", label: "Night Labour",   value: row.nightAmount > 0 ? fmt(row.nightAmount) : "—", color: "#a78bfa" },
-          { icon: "🏦", label: "Total Expenditure", value: row.totalAmount > 0 ? fmt(row.totalAmount) : "—", color: "#4ade80" },
+          { icon: "☀️",  label: "Day Workers",         value: String(row.dayWorkers),                                    color: "#6ea8ff" },
+          { icon: "🌙",  label: "Night Workers",        value: String(row.nightWorkers),                                  color: "#a78bfa" },
+          { icon: "👥",  label: "Total Workers",        value: String(row.totalWorkers),                                  color: "var(--text)" },
+          { icon: "💰",  label: "Day Supply Cost",      value: row.dayAmount   > 0 ? fmt(row.dayAmount)   : "—",          color: "#6ea8ff" },
+          { icon: "💜",  label: "Night Supply Cost",    value: row.nightAmount > 0 ? fmt(row.nightAmount) : "—",          color: "#a78bfa" },
+          { icon: "🏦",  label: "Total Supply Cost",    value: row.totalAmount > 0 ? fmt(row.totalAmount) : "—",          color: "#4ade80" },
         ].map((c) => (
           <div key={c.label} style={{ background: "var(--sidebar-bg)", borderRadius: 8, padding: "10px 12px", border: "1px solid var(--border)" }}>
             <div style={{ fontSize: 18 }}>{c.icon}</div>
             <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>{c.label}</div>
-            <div style={{ fontSize: 15, fontWeight: 600, marginTop: 2, color: c.color }}>{c.value}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4, color: c.color }}>{c.value}</div>
           </div>
         ))}
       </div>
 
-      {/* ── Day Labour ─────────────────────────────────────────────────── */}
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <SectionBadge color="#6ea8ff" label="☀️ DAY LABOUR" />
-        <LabourTable
-          rows={dayRows}
-          totalWorkers={row.dayWorkers}
-          totalAmt={row.dayAmount}
-          hasAmounts={hasDayAmts}
-        />
-        {!hasDayAmts && row.dayWorkers > 0 && (
-          <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 8 }}>
-            * Expenditure amounts load from the live sheet — refresh to update.
-          </p>
-        )}
-      </div>
+      {/* ── Supply Day Labour ──────────────────────────────────────────── */}
+      <LabourSection
+        badge="☀️ SUPPLY DAY LABOUR"
+        badgeColor="#6ea8ff"
+        categories={dayCats}
+        totalWorkers={row.dayWorkers}
+        totalAmt={row.dayAmount}
+      />
 
-      {/* ── Night Labour ───────────────────────────────────────────────── */}
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <SectionBadge color="#a78bfa" label="🌙 NIGHT LABOUR" />
-        <LabourTable
-          rows={nightRows}
-          totalWorkers={row.nightWorkers}
-          totalAmt={row.nightAmount}
-          hasAmounts={hasNightAmts}
-        />
-        {!hasNightAmts && row.nightWorkers > 0 && (
-          <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 8 }}>
-            * Expenditure amounts load from the live sheet — refresh to update.
-          </p>
-        )}
-      </div>
+      {/* ── Night Supply Labour ────────────────────────────────────────── */}
+      <LabourSection
+        badge={`🌙 ${nightLabel.toUpperCase()}`}
+        badgeColor="#a78bfa"
+        categories={nightCats}
+        totalWorkers={row.nightWorkers}
+        totalAmt={row.nightAmount}
+      />
 
-      {/* ── Work-type breakdown ────────────────────────────────────────── */}
+      {/* ── Total Day + Night Supply Cost footer ───────────────────────── */}
+      {(row.dayAmount > 0 || row.nightAmount > 0) && (
+        <div style={{
+          display: "flex", justifyContent: "flex-end", gap: 16,
+          padding: "14px 20px", marginBottom: 16,
+          background: "var(--sidebar-bg)", borderRadius: 10,
+          border: "1px solid var(--border)",
+        }}>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 11, color: "var(--muted)", fontWeight: 600 }}>DAY SUPPLY</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#6ea8ff" }}>{row.dayAmount > 0 ? fmt(row.dayAmount) : "—"}</div>
+          </div>
+          <div style={{ width: 1, background: "var(--border)" }} />
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 11, color: "var(--muted)", fontWeight: 600 }}>NIGHT SUPPLY</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#a78bfa" }}>{row.nightAmount > 0 ? fmt(row.nightAmount) : "—"}</div>
+          </div>
+          <div style={{ width: 1, background: "var(--border)" }} />
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 11, color: "var(--muted)", fontWeight: 600 }}>TOTAL SUPPLY COST</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#4ade80" }}>{row.totalAmount > 0 ? fmt(row.totalAmount) : "—"}</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Work Description Wise Breakdown ────────────────────────────── */}
       {hasWorkTypes && (
         <div className="panel">
           <h3 style={{ marginBottom: 12 }}>📋 Work Description Wise Breakdown</h3>
@@ -366,10 +404,19 @@ function DLRDay({ row }: { row: DailyBilling }) {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead>
                 <tr style={{ background: "var(--sidebar-bg)" }}>
-                  {["#", "Work Description", "Mason", "Helper", "SUP/FOR", "Cook", "Day Total", "Night Mason", "Night Helper", "Night Total"].map((h) => (
+                  <th colSpan={2} style={{ padding: "7px 10px", textAlign: "left", borderBottom: "2px solid var(--border)", color: "var(--muted)", fontWeight: 600, fontSize: 10 }}>Work Description</th>
+                  <th colSpan={5} style={{ padding: "7px 10px", textAlign: "center", borderBottom: "2px solid var(--border)", color: "#6ea8ff", fontWeight: 600, fontSize: 10, borderRight: "1px solid var(--border)" }}>☀️ DAY SHIFT</th>
+                  <th colSpan={3} style={{ padding: "7px 10px", textAlign: "center", borderBottom: "2px solid var(--border)", color: "#a78bfa", fontWeight: 600, fontSize: 10 }}>🌙 NIGHT SHIFT</th>
+                </tr>
+                <tr style={{ background: "var(--sidebar-bg)" }}>
+                  {["#", "Description", "Mason", "Helper", "SUP/FOR", "Cook", "Day Total", "MAS", "HELPER", "Night Total"].map((h, i) => (
                     <th key={h} style={{
-                      padding: "7px 10px", textAlign: h === "#" || h === "Work Description" ? "left" : "right",
-                      borderBottom: "2px solid var(--border)", color: "var(--muted)", fontWeight: 600, fontSize: 10, whiteSpace: "nowrap",
+                      padding: "6px 10px",
+                      textAlign: i <= 1 ? "left" : "right",
+                      borderBottom: "2px solid var(--border)",
+                      borderRight: i === 6 ? "1px solid var(--border)" : undefined,
+                      color: i >= 7 ? "#a78bfa" : i >= 2 ? "#6ea8ff" : "var(--muted)",
+                      fontWeight: 600, fontSize: 10, whiteSpace: "nowrap",
                     }}>{h}</th>
                   ))}
                 </tr>
@@ -377,30 +424,30 @@ function DLRDay({ row }: { row: DailyBilling }) {
               <tbody>
                 {row.workTypes.map((wt, i) => (
                   <tr key={wt.srNo} style={{ background: i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
-                    <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--border)", color: "var(--muted)" }}>{wt.srNo}</td>
-                    <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--border)", fontWeight: 500, maxWidth: 200 }}>{wt.description}</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>{wt.dayMason || "—"}</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>{wt.dayHelper || "—"}</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>{wt.daySup || "—"}</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)" }}>{wt.dayCook || "—"}</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 600, color: "#6ea8ff" }}>{wt.daySubTotal || "—"}</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#a78bfa" }}>{wt.nightMason || "—"}</td>
+                    <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--border)", color: "var(--muted)", width: 28 }}>{wt.srNo}</td>
+                    <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--border)", fontWeight: 500 }}>{wt.description}</td>
+                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#6ea8ff" }}>{wt.dayMason   || "—"}</td>
+                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#6ea8ff" }}>{wt.dayHelper  || "—"}</td>
+                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#6ea8ff" }}>{wt.daySup     || "—"}</td>
+                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#6ea8ff" }}>{wt.dayCook    || "—"}</td>
+                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 700, color: "#6ea8ff", borderRight: "1px solid var(--border)" }}>{wt.daySubTotal || "—"}</td>
+                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#a78bfa" }}>{wt.nightMason  || "—"}</td>
                     <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#a78bfa" }}>{wt.nightHelper || "—"}</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 600, color: "#a78bfa" }}>{wt.nightSubTotal || "—"}</td>
+                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 700, color: "#a78bfa" }}>{wt.nightSubTotal || "—"}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr style={{ background: "var(--sidebar-bg)", fontWeight: 700 }}>
-                  <td colSpan={2} style={{ padding: "7px 10px", borderTop: "2px solid var(--border)" }}>TOTAL</td>
-                  <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)" }}>{row.dayMason}</td>
-                  <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)" }}>{row.dayHelper}</td>
-                  <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)" }}>{row.daySup}</td>
-                  <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)" }}>{row.dayCook}</td>
-                  <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#6ea8ff" }}>{row.dayWorkers}</td>
-                  <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#a78bfa" }}>{row.nightMason}</td>
-                  <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#a78bfa" }}>{row.nightHelper}</td>
-                  <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#a78bfa" }}>{row.nightWorkers}</td>
+                  <td colSpan={2} style={{ padding: "8px 10px", borderTop: "2px solid var(--border)" }}>TOTAL</td>
+                  <td style={{ padding: "8px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#6ea8ff" }}>{row.dayMason}</td>
+                  <td style={{ padding: "8px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#6ea8ff" }}>{row.dayHelper}</td>
+                  <td style={{ padding: "8px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#6ea8ff" }}>{row.daySup}</td>
+                  <td style={{ padding: "8px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#6ea8ff" }}>{row.dayCook}</td>
+                  <td style={{ padding: "8px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#6ea8ff", fontSize: 14, borderRight: "1px solid var(--border)" }}>{row.dayWorkers}</td>
+                  <td style={{ padding: "8px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#a78bfa" }}>{row.nightMason}</td>
+                  <td style={{ padding: "8px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#a78bfa" }}>{row.nightHelper}</td>
+                  <td style={{ padding: "8px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#a78bfa", fontSize: 14 }}>{row.nightWorkers}</td>
                 </tr>
               </tfoot>
             </table>
