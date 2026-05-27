@@ -222,6 +222,8 @@ function CategoryTable({
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* ── DLR All (master overview) ──────────────────────────────────────────── */
 /* ═══════════════════════════════════════════════════════════════════════════ */
+type LabourFilter = "all" | "day" | "night";
+
 function DLRAll({ daily, monthly, summary, theme }: {
   daily: DailyBilling[]; monthly: DailyBilling | null; summary: BillingSummary; theme: "dark" | "light";
 }) {
@@ -229,20 +231,44 @@ function DLRAll({ daily, monthly, summary, theme }: {
   const gridColor = isDark ? "#25305a" : "#ccd4ee";
   const axisColor = isDark ? "#9aa6cc" : "#5a6890";
 
+  const [labourFilter, setLabourFilter] = useState<LabourFilter>("all");
+
+  /* ── Filter daily rows by labour type ─────────────────────────────────── */
+  const filteredDaily = useMemo(() => {
+    if (labourFilter === "day")
+      return daily.filter((d) => d.totalDayLabour > 0 || d.totalDaySupply > 0);
+    if (labourFilter === "night")
+      return daily.filter((d) => d.totalNightLabour > 0 || d.totalNightSupply > 0);
+    return daily;
+  }, [daily, labourFilter]);
+
+  /* ── Filtered summary totals ───────────────────────────────────────────── */
+  const filteredTotals = useMemo(() => {
+    if (labourFilter === "all") return summary;
+    const totalDailyExp  = filteredDaily.reduce((s, d) => s + d.totalDailyExpense,  0);
+    const totalSupplyExp = filteredDaily.reduce((s, d) => s + d.totalSupplyExpense, 0);
+    const totalAll       = filteredDaily.reduce((s, d) => s + d.totalAmount,        0);
+    const activeDays     = filteredDaily.filter((d) => d.totalAmount > 0).length;
+    const peakDay        = filteredDaily.filter((d) => d.totalAmount > 0).length
+      ? filteredDaily.filter((d) => d.totalAmount > 0).reduce((b, d) => d.totalAmount > b.totalAmount ? d : b)
+      : null;
+    return { totalDailyExp, totalSupplyExp, totalAll, activeDays, peakDay, avgDaily: activeDays ? Math.round(totalAll / activeDays) : 0 };
+  }, [filteredDaily, labourFilter, summary]);
+
   const kpis = [
-    { label: "Total Expenditure",  value: fmt(summary.totalAll),       icon: "💰", color: "kpi-blue",  sub: "May 2026 to date" },
-    { label: "Regular Labour Exp", value: fmt(summary.totalDailyExp),  icon: "☀️", color: "kpi-amber", sub: "Day + Night regular" },
-    { label: "Supply Labour Exp",  value: fmt(summary.totalSupplyExp), icon: "🔄", color: "kpi-gray",  sub: "Day + Night supply" },
-    { label: "Active Work Days",   value: String(summary.activeDays),  icon: "📅", color: "kpi-green", sub: "Days with workers" },
-    { label: "Avg Daily Spend",    value: fmt(summary.avgDaily),        icon: "📊", color: "kpi-red",   sub: "Per active day" },
-    { label: "Peak Day",           value: summary.peakDay?.date ?? "—", icon: "⬆️", color: "kpi-blue", sub: summary.peakDay ? fmt(summary.peakDay.totalAmount) : "—" },
+    { label: "Total Expenditure",  value: fmt(filteredTotals.totalAll),       icon: "💰", color: "kpi-blue",  sub: labourFilter === "all" ? "May 2026 to date" : labourFilter === "day" ? "Day labour only" : "Night labour only" },
+    { label: "Regular Labour Exp", value: fmt(filteredTotals.totalDailyExp),  icon: "☀️", color: "kpi-amber", sub: "Day + Night regular" },
+    { label: "Supply Labour Exp",  value: fmt(filteredTotals.totalSupplyExp), icon: "🔄", color: "kpi-gray",  sub: "Day + Night supply" },
+    { label: "Active Work Days",   value: String(filteredTotals.activeDays),  icon: "📅", color: "kpi-green", sub: "Days with workers" },
+    { label: "Avg Daily Spend",    value: fmt(filteredTotals.avgDaily),        icon: "📊", color: "kpi-red",   sub: "Per active day" },
+    { label: "Peak Day",           value: filteredTotals.peakDay?.date ?? "—", icon: "⬆️", color: "kpi-blue", sub: filteredTotals.peakDay ? fmt(filteredTotals.peakDay.totalAmount) : "—" },
   ];
 
-  const chartData = daily
+  const chartData = filteredDaily
     .filter((d) => d.totalDailyExpense > 0 || d.totalSupplyExpense > 0)
     .map((d) => ({ date: d.date, dailyExpense: d.totalDailyExpense, supplyExpense: d.totalSupplyExpense }));
 
-  const workerData = daily
+  const workerData = filteredDaily
     .filter((d) => d.totalDayLabour > 0 || d.totalNightLabour > 0 || d.totalDaySupply > 0 || d.totalNightSupply > 0)
     .map((d) => ({
       date: d.date,
@@ -264,6 +290,58 @@ function DLRAll({ daily, monthly, summary, theme }: {
             <div className="delta">{k.sub}</div>
           </div>
         ))}
+      </div>
+
+      {/* ── Labour type filter ────────────────────────────────────────── */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+        margin: "0 0 20px 0", padding: "12px 16px",
+        background: "var(--sidebar-bg)", borderRadius: 10, border: "1px solid var(--border)",
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", letterSpacing: "0.05em", marginRight: 4 }}>
+          FILTER BY LABOUR TYPE
+        </span>
+        {([
+          { key: "all",   label: "All Reports",         icon: "📊", color: "#6ea8ff" },
+          { key: "day",   label: "Day Labour Reports",  icon: "☀️",  color: "#fbbf24" },
+          { key: "night", label: "Night Labour Reports",icon: "🌙",  color: "#a78bfa" },
+        ] as { key: LabourFilter; label: string; icon: string; color: string }[]).map(({ key, label, icon, color }) => {
+          const active = labourFilter === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setLabourFilter(key)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "7px 16px", borderRadius: 20, cursor: "pointer",
+                fontWeight: 600, fontSize: 12, transition: "all 0.15s",
+                border: active ? `2px solid ${color}` : "2px solid var(--border)",
+                background: active ? color + "22" : "transparent",
+                color: active ? color : "var(--muted)",
+              }}
+            >
+              <span style={{ fontSize: 14 }}>{icon}</span>
+              {label}
+              {active && (
+                <span style={{
+                  marginLeft: 4, background: color, color: "#fff",
+                  borderRadius: 10, fontSize: 10, padding: "1px 7px", fontWeight: 700,
+                }}>
+                  {key === "day"
+                    ? filteredDaily.length + " days"
+                    : key === "night"
+                    ? filteredDaily.length + " days"
+                    : daily.length + " days"}
+                </span>
+              )}
+            </button>
+          );
+        })}
+        {labourFilter !== "all" && (
+          <span style={{ fontSize: 11, color: "var(--muted)", marginLeft: "auto", fontStyle: "italic" }}>
+            Showing {filteredDaily.length} of {daily.length} dates
+          </span>
+        )}
       </div>
 
       {/* Monthly category summary from Main sheet */}
@@ -336,7 +414,14 @@ function DLRAll({ daily, monthly, summary, theme }: {
 
       {/* Master register table */}
       <div className="panel">
-        <h3>📋 Master Register — May 2026 (Date-wise)</h3>
+        <h3>
+          📋 Master Register — May 2026 (Date-wise)
+          {labourFilter !== "all" && (
+            <span style={{ fontWeight: 400, fontSize: 12, color: "var(--muted)", marginLeft: 8 }}>
+              · {labourFilter === "day" ? "☀️ Day Labour" : "🌙 Night Labour"} filter active
+            </span>
+          )}
+        </h3>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
@@ -357,8 +442,8 @@ function DLRAll({ daily, monthly, summary, theme }: {
               </tr>
             </thead>
             <tbody>
-              {daily.map((row, i) => {
-                const isPeak = summary.peakDay?.date === row.date;
+              {filteredDaily.map((row, i) => {
+                const isPeak = filteredTotals.peakDay?.date === row.date;
                 return (
                   <tr key={row.date} style={{ background: i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
                     <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>{row.date}{isPeak ? " ⬆️" : ""}</td>
@@ -378,28 +463,28 @@ function DLRAll({ daily, monthly, summary, theme }: {
               <tr style={{ background: "var(--sidebar-bg)", fontWeight: 700 }}>
                 <td style={{ padding: "7px 10px", borderTop: "2px solid var(--border)" }}>TOTAL</td>
                 <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#6ea8ff" }}>
-                  {daily.reduce((s, d) => s + d.totalDayLabour, 0)}
+                  {filteredDaily.reduce((s, d) => s + d.totalDayLabour, 0)}
                 </td>
                 <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#a78bfa" }}>
-                  {daily.reduce((s, d) => s + d.totalNightLabour, 0)}
+                  {filteredDaily.reduce((s, d) => s + d.totalNightLabour, 0)}
                 </td>
                 <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#4ade80" }}>
-                  {fmt(summary.totalDailyExp)}
+                  {fmt(filteredTotals.totalDailyExp)}
                 </td>
                 <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#fbbf24" }}>
-                  {daily.reduce((s, d) => s + d.totalDaySupply, 0)}
+                  {filteredDaily.reduce((s, d) => s + d.totalDaySupply, 0)}
                 </td>
                 <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#fb923c" }}>
-                  {daily.reduce((s, d) => s + d.totalNightSupply, 0)}
+                  {filteredDaily.reduce((s, d) => s + d.totalNightSupply, 0)}
                 </td>
                 <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#4ade80" }}>
-                  {fmt(summary.totalSupplyExp)}
+                  {fmt(filteredTotals.totalSupplyExp)}
                 </td>
                 <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)" }}>
-                  {daily.reduce((s, d) => s + d.totalLabour, 0)}
+                  {filteredDaily.reduce((s, d) => s + d.totalLabour, 0)}
                 </td>
                 <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#4ade80", fontSize: 13 }}>
-                  {fmt(summary.totalAll)}
+                  {fmt(filteredTotals.totalAll)}
                 </td>
               </tr>
             </tfoot>
