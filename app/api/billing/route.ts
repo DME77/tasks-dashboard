@@ -3,70 +3,49 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 /* ── Sheet config ─────────────────────────────────────────────────────────── */
-const DLR_SHEET_ID = "1PnmXsPlNtO_VTdgvutGyYJOTxQ5DYsIl6ufJuRfiVJM";
+const DLR_SHEET_ID = "1udrYoj4G9IeAuTzYJqZoPS9OYJTFXdKOk1iIqUNcxuA";
 const DPR_SHEET_ID = "1yzPpZR6HonSLlFk4c046AR5cgYtmD0UGhbO280FzoTk";
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
 
-/** One work-description row from the DLR sheet (rows 1-11) */
-export interface WorkTypeEntry {
+/**
+ * One category row from the DLR sheet.
+ * Column layout (0-indexed):
+ *   [0] S.No.
+ *   [1] Category  (Mason / Helper / SUP/FOR / COOK / From Local Chowk Labour / Fare)
+ *   [2] Day Labour        — regular day worker count
+ *   [3] Night Labour      — regular night worker count
+ *   [4] Daily Expense     — ₹ for regular (day+night) workers
+ *   [5] Day Supply Labour — supply day worker count
+ *   [6] Night Supply Labour— supply night worker count
+ *   [7] Supply Expense    — ₹ for supply (day+night) workers
+ *   [8] Total Labour Category Wise — all workers combined
+ *   [9] Total Amount      — all expense combined
+ */
+export interface CategoryBilling {
   srNo: number;
-  description: string;
-  // Day shift counts
-  dayMason: number;
-  dayHelper: number;
-  daySup: number;         // SUP/FOR column
-  dayCook: number;
-  daySubTotal: number;
-  // Night shift counts
-  nightMason: number;
-  nightHelper: number;
-  nightSubTotal: number;
+  category: string;
+  dayLabour: number;
+  nightLabour: number;
+  dailyExpense: number;
+  daySupply: number;
+  nightSupply: number;
+  supplyExpense: number;
+  totalLabour: number;
+  totalAmount: number;
 }
 
-/**
- * DLR sheet layout (cols 0-based, auto-detected via "Mason" header):
- *   [descC]    = WORK DESCRIPTION
- *   [masonC]   = Mason(day)  [+1] Helper(day)  [+2] SUP/FOR(day)  [+3] COOK(day)  [+4] SUB TOTAL(day)
- *   [masonC+5] = MAS(night)  [+6] HELPER(night)  [+7] SUB-TOTAL(night)
- *
- * Special rows:
- *   "TOTAL"              → worker count totals
- *   Day expense row      → rupee amounts for Mason/Helper/SUP/COOK/SubTotal (day cols only)
- *   Night expense row    → rupee amounts for MAS/HELPER/SubTotal (night cols only)
- *                          label from col B of this row = nightCategoryLabel
- *   Combined expense row → both day & night amounts in one row
- */
 export interface DailyBilling {
   date: string;
-  // Day shift — worker counts (TOTAL row)
-  dayMason: number;
-  dayHelper: number;
-  daySup: number;
-  dayCook: number;
-  dayWorkers: number;
-  // Night shift — worker counts
-  nightMason: number;
-  nightHelper: number;
-  nightWorkers: number;
-  // Combined
-  totalWorkers: number;
-  // Expenditure — day categories
-  dayMasonAmt: number;
-  dayHelperAmt: number;
-  daySupAmt: number;
-  dayCookAmt: number;
-  dayAmount: number;
-  // Expenditure — night categories
-  nightMasonAmt: number;
-  nightHelperAmt: number;
-  nightAmount: number;
-  // Grand total
+  rows: CategoryBilling[];
+  totalDayLabour: number;
+  totalNightLabour: number;
+  totalDailyExpense: number;
+  totalDaySupply: number;
+  totalNightSupply: number;
+  totalSupplyExpense: number;
+  totalLabour: number;
   totalAmount: number;
-  // Night section label (read from col B of the night expense row, e.g. B19)
-  nightCategoryLabel: string;
-  // Work-type breakdown rows 1-11
-  workTypes: WorkTypeEntry[];
 }
 
 export interface ActivityItem {
@@ -78,55 +57,6 @@ export interface DailyDPR {
   date: string;
   activities: ActivityItem[];
 }
-
-/* ── DLR fallback (grand totals only; per-category data from live sheet) ──── */
-function bill(
-  date: string,
-  dayMason: number, dayHelper: number, daySup: number, dayCook: number,
-  dayAmount: number,
-  nightMason: number, nightHelper: number,
-  nightAmount: number
-): DailyBilling {
-  return {
-    date,
-    dayMason, dayHelper, daySup, dayCook,
-    dayWorkers: dayMason + dayHelper + daySup + dayCook,
-    nightMason, nightHelper,
-    nightWorkers: nightMason + nightHelper,
-    totalWorkers: dayMason + dayHelper + daySup + dayCook + nightMason + nightHelper,
-    dayMasonAmt: 0, dayHelperAmt: 0, daySupAmt: 0, dayCookAmt: 0, dayAmount,
-    nightMasonAmt: 0, nightHelperAmt: 0, nightAmount,
-    totalAmount: dayAmount + nightAmount,
-    nightCategoryLabel: "Night Supply Labour",
-    workTypes: [],
-  };
-}
-
-// Fallback uses old counts mapped to new fields (live sheet provides real breakdown)
-const BILLING_FALLBACK: DailyBilling[] = [
-  bill("01-May", 1,  1,  0, 0, 1500,  0, 0, 0    ),
-  bill("02-May", 9,  7,  0, 0, 13700, 0, 0, 0    ),
-  bill("03-May", 8,  7,  0, 0, 12850, 0, 0, 0    ),
-  bill("04-May", 9,  8,  0, 0, 14350, 0, 0, 0    ),
-  bill("05-May", 8,  8,  0, 0, 13500, 0, 0, 0    ),
-  bill("06-May", 9,  7,  0, 0, 13700, 0, 0, 0    ),
-  bill("07-May", 10, 6,  6, 0, 18950, 0, 0, 10050),
-  bill("08-May", 9,  8,  6, 0, 19400, 0, 0, 19050),
-  bill("09-May", 9,  8,  0, 0, 14350, 0, 0, 7700 ),
-  bill("10-May", 5,  4,  0, 0, 8350,  0, 0, 6850 ),
-  bill("11-May", 8,  8,  4, 0, 16900, 0, 0, 7700 ),
-  bill("12-May", 10, 7,  0, 0, 14550, 0, 0, 6200 ),
-  bill("13-May", 9,  7,  0, 0, 13700, 0, 0, 0    ),
-  bill("14-May", 8,  7,  0, 0, 12850, 0, 0, 0    ),
-  bill("15-May", 8,  8,  0, 0, 13500, 0, 0, 12000),
-  bill("16-May", 7,  8,  0, 0, 12650, 0, 0, 7500 ),
-  bill("17-May", 9,  8,  0, 0, 14350, 0, 0, 0    ),
-  bill("18-May", 3,  2,  0, 0, 5350,  0, 0, 10500),
-  bill("19-May", 2,  2,  0, 0, 4500,  0, 0, 9000 ),
-  bill("20-May", 8,  6,  0, 0, 12200, 0, 0, 18000),
-  bill("21-May", 6,  7,  0, 0, 11150, 0, 0, 0    ),
-  bill("22-May", 6,  7,  0, 0, 11150, 0, 0, 0    ),
-];
 
 /* ── DPR fallback ────────────────────────────────────────────────────────── */
 type ActRow = [string, string, number];
@@ -172,8 +102,6 @@ function formatDate(d: Date): string {
 function getMayDates(): string[] {
   const dates: string[] = [];
   const now = new Date();
-  // Normalize to local midnight so today's date is always included regardless
-  // of server timezone vs user timezone (e.g. UTC server, IST user)
   const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const mayEnd  = new Date(2026, 4, 31);
   const cap     = todayMidnight <= mayEnd ? todayMidnight : mayEnd;
@@ -210,10 +138,12 @@ async function fetchGViz(sheetId: string, tabName: string): Promise<CellValue[][
 
 /* ── Value parsers ───────────────────────────────────────────────────────── */
 function toNum(val: CellValue): number {
-  if (typeof val === "number") return val;
+  if (typeof val === "number") return Math.round(val);
   if (typeof val === "string") {
-    const n = parseFloat(val.replace(/[^\d.]/g, ""));
-    return isNaN(n) ? 0 : n;
+    const trimmed = val.trim();
+    if (trimmed === "-" || trimmed === "") return 0;
+    const n = parseFloat(trimmed.replace(/[^\d.]/g, ""));
+    return isNaN(n) ? 0 : Math.round(n);
   }
   return 0;
 }
@@ -221,7 +151,9 @@ function toNum(val: CellValue): number {
 function parseAmount(val: CellValue): number {
   if (typeof val === "number") return Math.round(val);
   if (typeof val === "string") {
-    const n = parseFloat(val.replace(/[₹,\s]/g, ""));
+    const trimmed = val.trim();
+    if (trimmed === "-" || trimmed === "") return 0;
+    const n = parseFloat(trimmed.replace(/[₹,\s]/g, ""));
     return isNaN(n) ? 0 : Math.round(n);
   }
   return 0;
@@ -237,217 +169,85 @@ function parseQuantity(val: CellValue): number {
 }
 
 /* ── DLR parser ──────────────────────────────────────────────────────────── */
-/*
- * Column layout auto-detected by scanning for a "Mason" header cell.
- * Expense rows are detected by whether amounts appear in day-only cols,
- * night-only cols, or both — so the sheet can have:
- *   • One combined "Till date expense" row  (both day + night in same row), OR
- *   • A day expense row + a separate night expense row (label from B col = nightCategoryLabel)
- * Labels are found by scanning the first few cells of each row.
- */
 function parseDLR(rows: CellValue[][], date: string): DailyBilling | null {
-  const workTypes: WorkTypeEntry[] = [];
-  let dayMason = 0, dayHelper = 0, daySup = 0, dayCook = 0, dayWorkers = 0;
-  let nightMason = 0, nightHelper = 0, nightWorkers = 0;
-  let dayMasonAmt = 0, dayHelperAmt = 0, daySupAmt = 0, dayCookAmt = 0, dayAmount = 0;
-  let nightMasonAmt = 0, nightHelperAmt = 0, nightAmount = 0;
-  let nightCategoryLabel = "Night Supply Labour";
-  let foundTotal = false, foundAmt = false;
+  const categories: CategoryBilling[] = [];
+  let totalDayLabour    = 0, totalNightLabour   = 0, totalDailyExpense  = 0;
+  let totalDaySupply    = 0, totalNightSupply   = 0, totalSupplyExpense = 0;
+  let totalLabour       = 0, totalAmount        = 0;
+  let foundTotal        = false;
 
-  // ── Step 1: auto-detect column layout by finding the "Mason" header ────────
-  let masonC = 3; // default: SR.NO.[0], DESC[1], UNIT[2], Mason[3]…
   for (const row of rows) {
-    const idx = row.findIndex(
-      (c) => typeof c === "string" && c.trim().toLowerCase() === "mason"
-    );
-    if (idx >= 1) { masonC = idx; break; }
-  }
-  const descC   = Math.max(0, masonC - 2); // WORK DESCRIPTION column
-  const hDayC   = masonC + 1;  // Helper (day)
-  const supC    = masonC + 2;  // SUP/FOR (day)
-  const cookC   = masonC + 3;  // COOK (day)
-  const subDC   = masonC + 4;  // SUB TOTAL (day)
-  const masNC   = masonC + 5;  // MAS (night)
-  const hNightC = masonC + 6;  // HELPER (night)
-  const subNC   = masonC + 7;  // SUB-TOTAL (night)
+    if (!row || row.length < 2) continue;
 
-  // ── Step 2: helper — first non-empty text in leading cells of a row ────────
-  function rowLabel(row: CellValue[]): { raw: string; lc: string } {
-    for (let i = 0; i <= Math.min(descC + 1, 4); i++) {
-      if (typeof row[i] === "string" && (row[i] as string).trim()) {
-        const raw = (row[i] as string).trim();
-        return { raw, lc: raw.toLowerCase() };
-      }
-    }
-    return { raw: "", lc: "" };
-  }
+    const srRaw = row[0];
+    const srNo  = typeof srRaw === "number" ? srRaw
+                : typeof srRaw === "string" ? parseFloat(srRaw) : NaN;
 
-  // ── Step 3: scan each row ──────────────────────────────────────────────────
-  for (const row of rows) {
-    const { raw: rawLabel, lc: label } = rowLabel(row);
+    const catRaw = typeof row[1] === "string" ? row[1].trim() : "";
+    const catLc  = catRaw.toLowerCase();
 
-    // SR.NO. — accept number or numeric string
-    const srRaw   = row[0];
-    const srNoNum = typeof srRaw === "number"
-      ? srRaw
-      : typeof srRaw === "string" ? parseFloat(srRaw) : NaN;
+    // Skip header / empty rows
+    if (!catRaw) continue;
+    if (catLc === "category" || catLc.startsWith("s.no") || catLc.startsWith("sr.no")) continue;
 
-    // ── TOTAL row (worker counts) ─────────────────────────────────────────────
-    if (label === "total" || (label.startsWith("total") && !label.includes("sub"))) {
-      dayMason     = toNum(row[masonC]);
-      dayHelper    = toNum(row[hDayC]);
-      daySup       = toNum(row[supC]);
-      dayCook      = toNum(row[cookC]);
-      dayWorkers   = toNum(row[subDC]);
-      nightMason   = toNum(row[masNC]);
-      nightHelper  = toNum(row[hNightC]);
-      nightWorkers = toNum(row[subNC]);
-      foundTotal   = true;
+    // "Total labour" row — grab grand totals
+    if (catLc.includes("total")) {
+      totalDayLabour     = toNum(row[2]);
+      totalNightLabour   = toNum(row[3]);
+      totalDailyExpense  = parseAmount(row[4]);
+      totalDaySupply     = toNum(row[5]);
+      totalNightSupply   = toNum(row[6]);
+      totalSupplyExpense = parseAmount(row[7]);
+      totalLabour        = toNum(row[8]);
+      totalAmount        = parseAmount(row[9]);
+      foundTotal = true;
       continue;
     }
 
-    // ── Expense rows: detect by where amounts appear ──────────────────────────
-    // Expense keywords in label
-    const isExpenseLabel =
-      label.includes("till") || label.includes("expense") ||
-      label.includes("expendit") || label.includes("amount") ||
-      label.includes("supply") || label.includes("night");
-
-    // Read amounts from day and night cols for this row
-    const dMason  = parseAmount(row[masonC]);
-    const dHelper = parseAmount(row[hDayC]);
-    const dSup    = parseAmount(row[supC]);
-    const dCook   = parseAmount(row[cookC]);
-    const dSub    = parseAmount(row[subDC]);
-    const nMason  = parseAmount(row[masNC]);
-    const nHelper = parseAmount(row[hNightC]);
-    const nSub    = parseAmount(row[subNC]);
-
-    const hasDayAmt   = dSub > 0 || (dMason + dHelper + dSup + dCook) > 0;
-    const hasNightAmt = nSub > 0 || (nMason + nHelper) > 0;
-
-    // A row is an expense row if it has an expense label OR it has large amounts
-    // (>500 ₹ threshold to avoid picking up worker counts)
-    const bigDay   = dSub > 500 || dMason > 500 || dHelper > 500;
-    const bigNight = nSub > 500 || nMason > 500 || nHelper > 500;
-    const isExpenseRow = isExpenseLabel || bigDay || bigNight;
-
-    // Skip work-type rows (those with numeric SR.NO. 1-15 and no large amounts)
-    const hasNumericSr = !isNaN(srNoNum) && srNoNum >= 1 && srNoNum <= 15;
-    if (hasNumericSr && !isExpenseRow) {
-      // Work-type row
-      workTypes.push({
-        srNo:          srNoNum,
-        description:   rawLabel,
-        dayMason:      toNum(row[masonC]),
-        dayHelper:     toNum(row[hDayC]),
-        daySup:        toNum(row[supC]),
-        dayCook:       toNum(row[cookC]),
-        daySubTotal:   toNum(row[subDC]),
-        nightMason:    toNum(row[masNC]),
-        nightHelper:   toNum(row[hNightC]),
-        nightSubTotal: toNum(row[subNC]),
+    // Category rows: SR.NO. 1–10
+    if (!isNaN(srNo) && srNo >= 1 && srNo <= 10) {
+      categories.push({
+        srNo,
+        category:      catRaw,
+        dayLabour:     toNum(row[2]),
+        nightLabour:   toNum(row[3]),
+        dailyExpense:  parseAmount(row[4]),
+        daySupply:     toNum(row[5]),
+        nightSupply:   toNum(row[6]),
+        supplyExpense: parseAmount(row[7]),
+        totalLabour:   toNum(row[8]),
+        totalAmount:   parseAmount(row[9]),
       });
-      continue;
-    }
-
-    // Non-SR.NO. work-type rows (fallback: has subtotals but no large rupee amounts)
-    if (!hasNumericSr && rawLabel && !isExpenseRow &&
-        label !== "total" && !label.includes("sub") &&
-        (toNum(row[subDC]) > 0 || toNum(row[subNC]) > 0) &&
-        toNum(row[subDC]) <= 500 && toNum(row[subNC]) <= 500) {
-      workTypes.push({
-        srNo:          workTypes.length + 1,
-        description:   rawLabel,
-        dayMason:      toNum(row[masonC]),
-        dayHelper:     toNum(row[hDayC]),
-        daySup:        toNum(row[supC]),
-        dayCook:       toNum(row[cookC]),
-        daySubTotal:   toNum(row[subDC]),
-        nightMason:    toNum(row[masNC]),
-        nightHelper:   toNum(row[hNightC]),
-        nightSubTotal: toNum(row[subNC]),
-      });
-      continue;
-    }
-
-    if (!isExpenseRow) continue;
-
-    // ── Handle expense row(s) ──────────────────────────────────────────────────
-    if (hasDayAmt && hasNightAmt) {
-      // Combined expense row — both day and night amounts in same row
-      dayMasonAmt  = dMason; dayHelperAmt = dHelper;
-      daySupAmt    = dSup;   dayCookAmt   = dCook;
-      dayAmount    = dSub > 0 ? dSub : dMason + dHelper + dSup + dCook;
-      nightMasonAmt  = nMason; nightHelperAmt = nHelper;
-      nightAmount    = nSub > 0 ? nSub : nMason + nHelper;
-      // Use this row's label as night category if it hints at "night"
-      if (label.includes("night") || label.includes("supply") || label.includes("2nd")) {
-        nightCategoryLabel = rawLabel;
-      }
-      foundAmt = true;
-
-    } else if (hasDayAmt && !hasNightAmt) {
-      // Day-only expense row
-      dayMasonAmt  = dMason; dayHelperAmt = dHelper;
-      daySupAmt    = dSup;   dayCookAmt   = dCook;
-      dayAmount    = dSub > 0 ? dSub : dMason + dHelper + dSup + dCook;
-      foundAmt = true;
-
-    } else if (hasNightAmt && !hasDayAmt) {
-      // Night-only expense row — label from column B IS the night category (e.g. B19)
-      nightMasonAmt  = nMason; nightHelperAmt = nHelper;
-      nightAmount    = nSub > 0 ? nSub : nMason + nHelper;
-      if (rawLabel) nightCategoryLabel = rawLabel;
-      foundAmt = true;
     }
   }
 
-  // ── Fallback: derive totals from work-type rows if TOTAL row not found ──────
-  if (!foundTotal && workTypes.length > 0) {
-    dayMason   = workTypes.reduce((s, w) => s + w.dayMason, 0);
-    dayHelper  = workTypes.reduce((s, w) => s + w.dayHelper, 0);
-    daySup     = workTypes.reduce((s, w) => s + w.daySup, 0);
-    dayCook    = workTypes.reduce((s, w) => s + w.dayCook, 0);
-    dayWorkers = workTypes.reduce((s, w) => s + w.daySubTotal, 0);
-    nightMason   = workTypes.reduce((s, w) => s + w.nightMason, 0);
-    nightHelper  = workTypes.reduce((s, w) => s + w.nightHelper, 0);
-    nightWorkers = workTypes.reduce((s, w) => s + w.nightSubTotal, 0);
-    foundTotal   = dayWorkers > 0 || nightWorkers > 0;
+  if (!categories.length && !foundTotal) return null;
+
+  // Derive totals from categories if "Total labour" row not found
+  if (!foundTotal && categories.length > 0) {
+    totalDayLabour     = categories.reduce((s, c) => s + c.dayLabour,     0);
+    totalNightLabour   = categories.reduce((s, c) => s + c.nightLabour,   0);
+    totalDailyExpense  = categories.reduce((s, c) => s + c.dailyExpense,  0);
+    totalDaySupply     = categories.reduce((s, c) => s + c.daySupply,     0);
+    totalNightSupply   = categories.reduce((s, c) => s + c.nightSupply,   0);
+    totalSupplyExpense = categories.reduce((s, c) => s + c.supplyExpense, 0);
+    totalLabour        = categories.reduce((s, c) => s + c.totalLabour,   0);
+    totalAmount        = categories.reduce((s, c) => s + c.totalAmount,   0);
   }
 
-  if (!foundTotal && !foundAmt) return null;
-  if (dayWorkers === 0 && nightWorkers === 0 && dayAmount === 0 && nightAmount === 0) return null;
-
-  // Derive sub-amounts from overall amount when individual amounts missing
-  if (dayAmount > 0 && dayMasonAmt === 0 && dayHelperAmt === 0) {
-    // Distribute proportionally by worker count
-    const total = dayMason + dayHelper + daySup + dayCook;
-    if (total > 0) {
-      dayMasonAmt  = Math.round((dayMason  / total) * dayAmount);
-      dayHelperAmt = Math.round((dayHelper / total) * dayAmount);
-      daySupAmt    = Math.round((daySup    / total) * dayAmount);
-      dayCookAmt   = dayAmount - dayMasonAmt - dayHelperAmt - daySupAmt;
-    }
-  }
-  if (nightAmount > 0 && nightMasonAmt === 0 && nightHelperAmt === 0) {
-    const total = nightMason + nightHelper;
-    if (total > 0) {
-      nightMasonAmt  = Math.round((nightMason  / total) * nightAmount);
-      nightHelperAmt = nightAmount - nightMasonAmt;
-    }
-  }
+  if (totalAmount === 0 && totalLabour === 0) return null;
 
   return {
     date,
-    dayMason, dayHelper, daySup, dayCook, dayWorkers,
-    nightMason, nightHelper, nightWorkers,
-    totalWorkers: dayWorkers + nightWorkers,
-    dayMasonAmt, dayHelperAmt, daySupAmt, dayCookAmt, dayAmount,
-    nightMasonAmt, nightHelperAmt, nightAmount,
-    totalAmount: dayAmount + nightAmount,
-    nightCategoryLabel,
-    workTypes,
+    rows: categories,
+    totalDayLabour,
+    totalNightLabour,
+    totalDailyExpense,
+    totalDaySupply,
+    totalNightSupply,
+    totalSupplyExpense,
+    totalLabour,
+    totalAmount,
   };
 }
 
@@ -455,9 +255,8 @@ function parseDLR(rows: CellValue[][], date: string): DailyBilling | null {
 function parseDPR(rows: CellValue[][], date: string): DailyDPR | null {
   const activities: ActivityItem[] = [];
 
-  // Auto-detect total-quantity column index (last non-empty header before data)
-  // Default: col[12] = Total (Pour 1-9 are cols 3-11, then Total is col 12)
-  let totalQtyCol = 12;
+  // Default: col[12] = Total
+  const totalQtyCol = 12;
 
   for (const row of rows) {
     // Stop at "Manpower" section
@@ -467,7 +266,6 @@ function parseDPR(rows: CellValue[][], date: string): DailyDPR | null {
       }
     }
 
-    // SR.NO. from col[0] — accept number or numeric string
     const srRaw   = row[0];
     const srNoNum = typeof srRaw === "number"
       ? srRaw
@@ -509,13 +307,20 @@ function aggregateActivities(dprData: DailyDPR[]) {
 export async function GET() {
   const dates = getMayDates();
 
-  const [dlrResults, dprResults] = await Promise.all([
+  const [dlrResults, dprResults, mainSheetRows] = await Promise.all([
     Promise.all(dates.map(async (date) => ({ date, rows: await fetchGViz(DLR_SHEET_ID, date) }))),
     Promise.all(dates.map(async (date) => ({ date, rows: await fetchGViz(DPR_SHEET_ID, date) }))),
+    fetchGViz(DLR_SHEET_ID, "Main sheet"),
   ]);
 
-  const billingFallbackMap = new Map(BILLING_FALLBACK.map((d) => [d.date, d]));
-  const dprFallbackMap     = new Map(DPR_FALLBACK.map((d) => [d.date, d]));
+  const dprFallbackMap = new Map(DPR_FALLBACK.map((d) => [d.date, d]));
+
+  const emptyDay = (date: string): DailyBilling => ({
+    date, rows: [],
+    totalDayLabour: 0, totalNightLabour: 0, totalDailyExpense: 0,
+    totalDaySupply: 0, totalNightSupply: 0, totalSupplyExpense: 0,
+    totalLabour: 0, totalAmount: 0,
+  });
 
   const finalBilling: DailyBilling[] = dates.map((date) => {
     const live = dlrResults.find((r) => r.date === date);
@@ -523,7 +328,7 @@ export async function GET() {
       const parsed = parseDLR(live.rows, date);
       if (parsed) return parsed;
     }
-    return billingFallbackMap.get(date) ?? bill(date, 0, 0, 0, 0, 0, 0, 0, 0);
+    return emptyDay(date);
   });
 
   const finalDPR: DailyDPR[] = dates.map((date) => {
@@ -535,17 +340,19 @@ export async function GET() {
     return dprFallbackMap.get(date) ?? { date, activities: [] };
   });
 
-  // DLR summary
-  const activeBilling = finalBilling.filter((d) => d.totalAmount > 0 || d.dayWorkers > 0);
-  const totalDay   = finalBilling.reduce((s, d) => s + d.dayAmount,   0);
-  const totalNight = finalBilling.reduce((s, d) => s + d.nightAmount, 0);
-  const totalAll   = finalBilling.reduce((s, d) => s + d.totalAmount, 0);
-  const activeDays = activeBilling.length;
-  const amtDays    = finalBilling.filter((d) => d.totalAmount > 0);
-  const peakDay    = amtDays.length
-    ? amtDays.reduce((best, d) => d.totalAmount > best.totalAmount ? d : best)
-    : finalBilling[0];
-  const avgDaily   = amtDays.length ? Math.round(totalAll / amtDays.length) : 0;
+  // Monthly summary from "Main sheet" tab
+  const monthly = mainSheetRows ? parseDLR(mainSheetRows, "May-2026") : null;
+
+  // DLR summary (derived from daily data)
+  const activeBilling  = finalBilling.filter((d) => d.totalAmount > 0);
+  const totalDailyExp  = finalBilling.reduce((s, d) => s + d.totalDailyExpense,  0);
+  const totalSupplyExp = finalBilling.reduce((s, d) => s + d.totalSupplyExpense, 0);
+  const totalAll       = finalBilling.reduce((s, d) => s + d.totalAmount,        0);
+  const activeDays     = activeBilling.length;
+  const peakDay        = activeBilling.length
+    ? activeBilling.reduce((best, d) => d.totalAmount > best.totalAmount ? d : best)
+    : null;
+  const avgDaily       = activeDays ? Math.round(totalAll / activeDays) : 0;
 
   // DPR summary
   const activeDprDays = finalDPR.filter((d) => d.activities.length > 0);
@@ -558,7 +365,8 @@ export async function GET() {
 
   return NextResponse.json({
     daily:             finalBilling,
-    summary:           { totalDay, totalNight, totalAll, activeDays, peakDay, avgDaily },
+    monthly,
+    summary:           { totalDailyExp, totalSupplyExp, totalAll, activeDays, peakDay, avgDaily },
     dpr:               finalDPR,
     activityAggregate: aggregateActivities(finalDPR),
     dprSummary:        {
