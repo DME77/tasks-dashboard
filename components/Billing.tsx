@@ -222,8 +222,6 @@ function CategoryTable({
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* ── DLR All (master overview) ──────────────────────────────────────────── */
 /* ═══════════════════════════════════════════════════════════════════════════ */
-type LabourFilter = "all" | "day" | "night";
-
 function DLRAll({ daily, monthly, summary, theme }: {
   daily: DailyBilling[]; monthly: DailyBilling | null; summary: BillingSummary; theme: "dark" | "light";
 }) {
@@ -231,44 +229,20 @@ function DLRAll({ daily, monthly, summary, theme }: {
   const gridColor = isDark ? "#25305a" : "#ccd4ee";
   const axisColor = isDark ? "#9aa6cc" : "#5a6890";
 
-  const [labourFilter, setLabourFilter] = useState<LabourFilter>("all");
-
-  /* ── Filter daily rows by labour type ─────────────────────────────────── */
-  const filteredDaily = useMemo(() => {
-    if (labourFilter === "day")
-      return daily.filter((d) => d.totalDayLabour > 0 || d.totalDaySupply > 0);
-    if (labourFilter === "night")
-      return daily.filter((d) => d.totalNightLabour > 0 || d.totalNightSupply > 0);
-    return daily;
-  }, [daily, labourFilter]);
-
-  /* ── Filtered summary totals ───────────────────────────────────────────── */
-  const filteredTotals = useMemo(() => {
-    if (labourFilter === "all") return summary;
-    const totalDailyExp  = filteredDaily.reduce((s, d) => s + d.totalDailyExpense,  0);
-    const totalSupplyExp = filteredDaily.reduce((s, d) => s + d.totalSupplyExpense, 0);
-    const totalAll       = filteredDaily.reduce((s, d) => s + d.totalAmount,        0);
-    const activeDays     = filteredDaily.filter((d) => d.totalAmount > 0).length;
-    const peakDay        = filteredDaily.filter((d) => d.totalAmount > 0).length
-      ? filteredDaily.filter((d) => d.totalAmount > 0).reduce((b, d) => d.totalAmount > b.totalAmount ? d : b)
-      : null;
-    return { totalDailyExp, totalSupplyExp, totalAll, activeDays, peakDay, avgDaily: activeDays ? Math.round(totalAll / activeDays) : 0 };
-  }, [filteredDaily, labourFilter, summary]);
-
   const kpis = [
-    { label: "Total Expenditure",  value: fmt(filteredTotals.totalAll),       icon: "💰", color: "kpi-blue",  sub: labourFilter === "all" ? "May 2026 to date" : labourFilter === "day" ? "Day labour only" : "Night labour only" },
-    { label: "Regular Labour Exp", value: fmt(filteredTotals.totalDailyExp),  icon: "☀️", color: "kpi-amber", sub: "Day + Night regular" },
-    { label: "Supply Labour Exp",  value: fmt(filteredTotals.totalSupplyExp), icon: "🔄", color: "kpi-gray",  sub: "Day + Night supply" },
-    { label: "Active Work Days",   value: String(filteredTotals.activeDays),  icon: "📅", color: "kpi-green", sub: "Days with workers" },
-    { label: "Avg Daily Spend",    value: fmt(filteredTotals.avgDaily),        icon: "📊", color: "kpi-red",   sub: "Per active day" },
-    { label: "Peak Day",           value: filteredTotals.peakDay?.date ?? "—", icon: "⬆️", color: "kpi-blue", sub: filteredTotals.peakDay ? fmt(filteredTotals.peakDay.totalAmount) : "—" },
+    { label: "Total Expenditure",  value: fmt(summary.totalAll),       icon: "💰", color: "kpi-blue",  sub: "May 2026 to date" },
+    { label: "Regular Labour Exp", value: fmt(summary.totalDailyExp),  icon: "☀️", color: "kpi-amber", sub: "Day + Night regular" },
+    { label: "Supply Labour Exp",  value: fmt(summary.totalSupplyExp), icon: "🔄", color: "kpi-gray",  sub: "Day + Night supply" },
+    { label: "Active Work Days",   value: String(summary.activeDays),  icon: "📅", color: "kpi-green", sub: "Days with workers" },
+    { label: "Avg Daily Spend",    value: fmt(summary.avgDaily),        icon: "📊", color: "kpi-red",   sub: "Per active day" },
+    { label: "Peak Day",           value: summary.peakDay?.date ?? "—", icon: "⬆️", color: "kpi-blue", sub: summary.peakDay ? fmt(summary.peakDay.totalAmount) : "—" },
   ];
 
-  const chartData = filteredDaily
+  const chartData = daily
     .filter((d) => d.totalDailyExpense > 0 || d.totalSupplyExpense > 0)
     .map((d) => ({ date: d.date, dailyExpense: d.totalDailyExpense, supplyExpense: d.totalSupplyExpense }));
 
-  const workerData = filteredDaily
+  const workerData = daily
     .filter((d) => d.totalDayLabour > 0 || d.totalNightLabour > 0 || d.totalDaySupply > 0 || d.totalNightSupply > 0)
     .map((d) => ({
       date: d.date,
@@ -291,92 +265,6 @@ function DLRAll({ daily, monthly, summary, theme }: {
           </div>
         ))}
       </div>
-
-      {/* ── Labour type filter ────────────────────────────────────────── */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
-        margin: "0 0 20px 0", padding: "12px 16px",
-        background: "var(--sidebar-bg)", borderRadius: 10, border: "1px solid var(--border)",
-      }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", letterSpacing: "0.05em", marginRight: 4 }}>
-          FILTER BY LABOUR TYPE
-        </span>
-        {([
-          { key: "all",   label: "All Reports",         icon: "📊", color: "#6ea8ff" },
-          { key: "day",   label: "Day Labour Reports",  icon: "☀️",  color: "#fbbf24" },
-          { key: "night", label: "Night Labour Reports",icon: "🌙",  color: "#a78bfa" },
-        ] as { key: LabourFilter; label: string; icon: string; color: string }[]).map(({ key, label, icon, color }) => {
-          const active = labourFilter === key;
-          return (
-            <button
-              key={key}
-              onClick={() => setLabourFilter(key)}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "7px 16px", borderRadius: 20, cursor: "pointer",
-                fontWeight: 600, fontSize: 12, transition: "all 0.15s",
-                border: active ? `2px solid ${color}` : "2px solid var(--border)",
-                background: active ? color + "22" : "transparent",
-                color: active ? color : "var(--muted)",
-              }}
-            >
-              <span style={{ fontSize: 14 }}>{icon}</span>
-              {label}
-              {active && (
-                <span style={{
-                  marginLeft: 4, background: color, color: "#fff",
-                  borderRadius: 10, fontSize: 10, padding: "1px 7px", fontWeight: 700,
-                }}>
-                  {key === "day"
-                    ? filteredDaily.length + " days"
-                    : key === "night"
-                    ? filteredDaily.length + " days"
-                    : daily.length + " days"}
-                </span>
-              )}
-            </button>
-          );
-        })}
-        {labourFilter !== "all" && (
-          <span style={{ fontSize: 11, color: "var(--muted)", marginLeft: "auto", fontStyle: "italic" }}>
-            Showing {filteredDaily.length} of {daily.length} dates
-          </span>
-        )}
-      </div>
-
-      {/* ── Focused stats for active filter ──────────────────────────── */}
-      {labourFilter !== "all" && (() => {
-        const isDay   = labourFilter === "day";
-        const accent  = isDay ? "#fbbf24" : "#a78bfa";
-        const regWorkers = isDay
-          ? filteredDaily.reduce((s, d) => s + d.totalDayLabour,   0)
-          : filteredDaily.reduce((s, d) => s + d.totalNightLabour, 0);
-        const supWorkers = isDay
-          ? filteredDaily.reduce((s, d) => s + d.totalDaySupply,   0)
-          : filteredDaily.reduce((s, d) => s + d.totalNightSupply, 0);
-        const totalWorkers = regWorkers + supWorkers;
-        return (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(155px, 1fr))", gap: 10, marginBottom: 20 }}>
-            {[
-              { label: isDay ? "Regular Day Workers" : "Regular Night Workers", value: String(regWorkers), icon: isDay ? "☀️" : "🌙", color: accent },
-              { label: isDay ? "Supply Day Workers"  : "Supply Night Workers",  value: String(supWorkers), icon: isDay ? "🔆" : "🌒", color: accent },
-              { label: isDay ? "Total Day Workers"   : "Total Night Workers",   value: String(totalWorkers), icon: "👥", color: accent },
-              { label: "Active Days",   value: String(filteredTotals.activeDays),  icon: "📅", color: accent },
-              { label: "Total Expense", value: fmt(filteredTotals.totalAll),       icon: "💰", color: accent },
-              { label: "Avg Daily",     value: fmt(filteredTotals.avgDaily),        icon: "📊", color: accent },
-            ].map((c) => (
-              <div key={c.label} style={{
-                background: accent + "11", borderRadius: 8, padding: "10px 12px",
-                border: `1px solid ${accent}44`,
-              }}>
-                <div style={{ fontSize: 16 }}>{c.icon}</div>
-                <div style={{ fontSize: 10, color: "var(--muted)", marginTop: 2, fontWeight: 600 }}>{c.label}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, marginTop: 4, color: c.color }}>{c.value}</div>
-              </div>
-            ))}
-          </div>
-        );
-      })()}
 
       {/* Monthly category summary from Main sheet */}
       {monthly && monthly.rows.length > 0 && (
@@ -401,18 +289,12 @@ function DLRAll({ daily, monthly, summary, theme }: {
         </div>
       )}
 
-      {/* Daily expenditure chart — bars change based on filter */}
+      {/* Daily expenditure chart */}
       {chartData.length > 0 && (
         <div className="panel" style={{ marginBottom: 16 }}>
-          <h3>
-            {labourFilter === "day"   ? "☀️ Day Labour — Daily Expenditure"
-           : labourFilter === "night" ? "🌙 Night Labour — Daily Expenditure"
-           :                            "Daily Expenditure — Regular vs Supply Labour"}
-          </h3>
+          <h3>Daily Expenditure — Regular vs Supply Labour</h3>
           <p style={{ fontSize: 12, color: "var(--muted)", marginTop: -4, marginBottom: 12 }}>
-            {labourFilter === "day"   ? "Regular day workers expense per date"
-           : labourFilter === "night" ? "Supply night workers expense per date"
-           :                            "Stacked: Regular (Day+Night) and Supply (Day+Night)"}
+            Stacked: Regular (Day+Night combined) and Supply (Day+Night combined)
           </p>
           <div style={{ width: "100%", height: 280 }}>
             <ResponsiveContainer>
@@ -422,30 +304,18 @@ function DLRAll({ daily, monthly, summary, theme }: {
                 <YAxis stroke={axisColor} tick={{ fontSize: 10 }} tickFormatter={(v) => "₹" + (v / 1000).toFixed(0) + "k"} />
                 <Tooltip content={<AmountTooltip />} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                {/* Regular Labour bar — shown for All + Day */}
-                {labourFilter !== "night" && (
-                  <Bar dataKey="dailyExpense" name="Regular Labour Exp" stackId="a" fill="#6ea8ff"
-                    radius={labourFilter === "day" ? [3, 3, 0, 0] : [0, 0, 0, 0]} />
-                )}
-                {/* Supply Labour bar — shown for All + Night */}
-                {labourFilter !== "day" && (
-                  <Bar dataKey="supplyExpense" name="Supply Labour Exp" stackId="a" fill="#fbbf24"
-                    radius={[3, 3, 0, 0]} />
-                )}
+                <Bar dataKey="dailyExpense"  name="Regular Labour Exp" stackId="a" fill="#6ea8ff" />
+                <Bar dataKey="supplyExpense" name="Supply Labour Exp"  stackId="a" fill="#fbbf24" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
       )}
 
-      {/* Worker count trend — lines change based on filter */}
+      {/* Worker count trend */}
       {workerData.length > 0 && (
         <div className="panel" style={{ marginBottom: 16 }}>
-          <h3>
-            {labourFilter === "day"   ? "☀️ Day Worker Count Trend"
-           : labourFilter === "night" ? "🌙 Night Worker Count Trend"
-           :                            "Worker Count Trend — Day/Night × Regular/Supply"}
-          </h3>
+          <h3>Worker Count Trend — Day/Night × Regular/Supply</h3>
           <div style={{ width: "100%", height: 240 }}>
             <ResponsiveContainer>
               <LineChart data={workerData} margin={{ top: 8, right: 16, bottom: 44, left: 0 }}>
@@ -454,20 +324,10 @@ function DLRAll({ daily, monthly, summary, theme }: {
                 <YAxis stroke={axisColor} tick={{ fontSize: 10 }} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                {/* Day lines — shown for All + Day filter */}
-                {labourFilter !== "night" && (
-                  <Line type="monotone" dataKey="dayLabour" stroke="#6ea8ff" strokeWidth={2} dot={{ r: 3 }} name="Regular Day" />
-                )}
-                {labourFilter !== "night" && (
-                  <Line type="monotone" dataKey="daySupply" stroke="#fbbf24" strokeWidth={2} dot={{ r: 3 }} name="Supply Day" />
-                )}
-                {/* Night lines — shown for All + Night filter */}
-                {labourFilter !== "day" && (
-                  <Line type="monotone" dataKey="nightLabour" stroke="#a78bfa" strokeWidth={2} dot={{ r: 3 }} name="Regular Night" />
-                )}
-                {labourFilter !== "day" && (
-                  <Line type="monotone" dataKey="nightSupply" stroke="#fb923c" strokeWidth={2} dot={{ r: 3 }} name="Supply Night" />
-                )}
+                <Line type="monotone" dataKey="dayLabour"   stroke="#6ea8ff" strokeWidth={2} dot={{ r: 3 }} name="Regular Day" />
+                <Line type="monotone" dataKey="daySupply"   stroke="#fbbf24" strokeWidth={2} dot={{ r: 3 }} name="Supply Day" />
+                <Line type="monotone" dataKey="nightLabour" stroke="#a78bfa" strokeWidth={2} dot={{ r: 3 }} name="Regular Night" />
+                <Line type="monotone" dataKey="nightSupply" stroke="#fb923c" strokeWidth={2} dot={{ r: 3 }} name="Supply Night" />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -476,81 +336,52 @@ function DLRAll({ daily, monthly, summary, theme }: {
 
       {/* Master register table */}
       <div className="panel">
-        <h3>
-          📋 Master Register — May 2026 (Date-wise)
-          {labourFilter !== "all" && (
-            <span style={{ fontWeight: 400, fontSize: 12, color: "var(--muted)", marginLeft: 8 }}>
-              · {labourFilter === "day" ? "☀️ Day Labour" : "🌙 Night Labour"} filter active
-            </span>
-          )}
-        </h3>
+        <h3>📋 Master Register — May 2026 (Date-wise)</h3>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
               <tr style={{ background: "var(--sidebar-bg)" }}>
                 {[
-                  { h: "Date",           color: undefined,   align: "left"  as const },
-                  { h: "Reg Day",        color: "#6ea8ff",   align: "right" as const },
-                  { h: "Reg Night",      color: "#a78bfa",   align: "right" as const },
-                  { h: "Regular Exp",    color: "#4ade80",   align: "right" as const },
-                  { h: "Sup Day",        color: "#fbbf24",   align: "right" as const },
-                  { h: "Sup Night",      color: "#fb923c",   align: "right" as const },
-                  { h: "Supply Exp",     color: "#4ade80",   align: "right" as const },
-                  { h: "Total Workers",  color: undefined,   align: "right" as const },
-                  { h: "Total Amount",   color: "#4ade80",   align: "right" as const },
+                  { h: "Date",          color: undefined,  align: "left"  as const },
+                  { h: "Reg Day",       color: "#6ea8ff",  align: "right" as const },
+                  { h: "Reg Night",     color: "#a78bfa",  align: "right" as const },
+                  { h: "Regular Exp",   color: "#4ade80",  align: "right" as const },
+                  { h: "Sup Day",       color: "#fbbf24",  align: "right" as const },
+                  { h: "Sup Night",     color: "#fb923c",  align: "right" as const },
+                  { h: "Supply Exp",    color: "#4ade80",  align: "right" as const },
+                  { h: "Total Workers", color: undefined,  align: "right" as const },
+                  { h: "Total Amount",  color: "#4ade80",  align: "right" as const },
                 ].map(({ h, color, align }) => (
                   <th key={h} style={{ padding: "7px 10px", textAlign: align, borderBottom: "2px solid var(--border)", color: color ?? "var(--muted)", fontWeight: 600, fontSize: 11, whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filteredDaily.map((row, i) => {
-                const isPeak   = filteredTotals.peakDay?.date === row.date;
-                const dimDay   = labourFilter === "night";  // dim day cols when night filter active
-                const dimNight = labourFilter === "day";    // dim night cols when day filter active
-                const dimStyle = (isDim: boolean) => isDim ? { opacity: 0.3 } : {};
-                return (
-                  <tr key={row.date} style={{ background: i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
-                    <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>{row.date}{isPeak ? " ⬆️" : ""}</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#6ea8ff", ...dimStyle(dimDay) }}>{row.totalDayLabour || "—"}</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#a78bfa", ...dimStyle(dimNight) }}>{row.totalNightLabour || "—"}</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#4ade80", ...dimStyle(dimNight) }}>{row.totalDailyExpense > 0 ? fmt(row.totalDailyExpense) : "—"}</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#fbbf24", ...dimStyle(dimDay) }}>{row.totalDaySupply || "—"}</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#fb923c", ...dimStyle(dimNight) }}>{row.totalNightSupply || "—"}</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#4ade80", ...dimStyle(dimNight) }}>{row.totalSupplyExpense > 0 ? fmt(row.totalSupplyExpense) : "—"}</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 500 }}>{row.totalLabour || "—"}</td>
-                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 700 }}>{row.totalAmount > 0 ? fmt(row.totalAmount) : "—"}</td>
-                  </tr>
-                );
-              })}
+              {daily.map((row, i) => (
+                <tr key={row.date} style={{ background: i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
+                  <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>{row.date}{summary.peakDay?.date === row.date ? " ⬆️" : ""}</td>
+                  <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#6ea8ff" }}>{row.totalDayLabour || "—"}</td>
+                  <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#a78bfa" }}>{row.totalNightLabour || "—"}</td>
+                  <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#4ade80" }}>{row.totalDailyExpense > 0 ? fmt(row.totalDailyExpense) : "—"}</td>
+                  <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#fbbf24" }}>{row.totalDaySupply || "—"}</td>
+                  <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#fb923c" }}>{row.totalNightSupply || "—"}</td>
+                  <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#4ade80" }}>{row.totalSupplyExpense > 0 ? fmt(row.totalSupplyExpense) : "—"}</td>
+                  <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 500 }}>{row.totalLabour || "—"}</td>
+                  <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 700 }}>{row.totalAmount > 0 ? fmt(row.totalAmount) : "—"}</td>
+                </tr>
+              ))}
             </tbody>
             <tfoot>
               <tr style={{ background: "var(--sidebar-bg)", fontWeight: 700 }}>
                 <td style={{ padding: "7px 10px", borderTop: "2px solid var(--border)" }}>TOTAL</td>
-                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#6ea8ff" }}>
-                  {filteredDaily.reduce((s, d) => s + d.totalDayLabour, 0)}
-                </td>
-                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#a78bfa" }}>
-                  {filteredDaily.reduce((s, d) => s + d.totalNightLabour, 0)}
-                </td>
-                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#4ade80" }}>
-                  {fmt(filteredTotals.totalDailyExp)}
-                </td>
-                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#fbbf24" }}>
-                  {filteredDaily.reduce((s, d) => s + d.totalDaySupply, 0)}
-                </td>
-                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#fb923c" }}>
-                  {filteredDaily.reduce((s, d) => s + d.totalNightSupply, 0)}
-                </td>
-                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#4ade80" }}>
-                  {fmt(filteredTotals.totalSupplyExp)}
-                </td>
-                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)" }}>
-                  {filteredDaily.reduce((s, d) => s + d.totalLabour, 0)}
-                </td>
-                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#4ade80", fontSize: 13 }}>
-                  {fmt(filteredTotals.totalAll)}
-                </td>
+                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#6ea8ff" }}>{daily.reduce((s, d) => s + d.totalDayLabour, 0)}</td>
+                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#a78bfa" }}>{daily.reduce((s, d) => s + d.totalNightLabour, 0)}</td>
+                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#4ade80" }}>{fmt(summary.totalDailyExp)}</td>
+                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#fbbf24" }}>{daily.reduce((s, d) => s + d.totalDaySupply, 0)}</td>
+                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#fb923c" }}>{daily.reduce((s, d) => s + d.totalNightSupply, 0)}</td>
+                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#4ade80" }}>{fmt(summary.totalSupplyExp)}</td>
+                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)" }}>{daily.reduce((s, d) => s + d.totalLabour, 0)}</td>
+                <td style={{ padding: "7px 10px", textAlign: "right", borderTop: "2px solid var(--border)", color: "#4ade80", fontSize: 13 }}>{fmt(summary.totalAll)}</td>
               </tr>
             </tfoot>
           </table>
@@ -834,7 +665,8 @@ export default function Billing({ theme }: { theme: "dark" | "light" }) {
 
   useEffect(() => {
     setRefreshing(true);
-    fetch("/api/billing")
+    // Add timestamp to bypass browser/CDN cache on every refresh
+    fetch(`/api/billing?t=${Date.now()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => { setData(d); setError(null); })
       .catch((e) => setError(e.message))

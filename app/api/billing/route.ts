@@ -363,17 +363,26 @@ export async function GET() {
     ? Math.round((activeDprDays.reduce((s, d) => s + d.activities.length, 0) / activeDprDays.length) * 10) / 10
     : 0;
 
-  return NextResponse.json({
-    daily:             finalBilling,
-    monthly,
-    summary:           { totalDailyExp, totalSupplyExp, totalAll, activeDays, peakDay, avgDaily },
-    dpr:               finalDPR,
-    activityAggregate: aggregateActivities(finalDPR),
-    dprSummary:        {
-      activeDays:          activeDprDays.length,
-      peakDate:            peakDprDay?.date ?? null,
-      peakActivityCount:   peakDprDay?.activities.length ?? 0,
-      avgActivitiesPerDay,
+  return NextResponse.json(
+    {
+      daily:             finalBilling,
+      monthly,
+      summary:           { totalDailyExp, totalSupplyExp, totalAll, activeDays, peakDay, avgDaily },
+      dpr:               finalDPR,
+      activityAggregate: aggregateActivities(finalDPR),
+      dprSummary:        {
+        activeDays:          activeDprDays.length,
+        peakDate:            peakDprDay?.date ?? null,
+        peakActivityCount:   peakDprDay?.activities.length ?? 0,
+        avgActivitiesPerDay,
+      },
     },
-  });
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+      },
+    }
+  );
 }
