@@ -584,27 +584,33 @@ function DPRAll({ dpr, activityAggregate, dprSummary, theme }: {
       {activityAggregate.length > 0 && (
         <div className="panel">
           <h3>📋 Work Progress — Cumulative Quantities (May 2026)</h3>
-          <p style={{ fontSize: 12, color: "var(--muted)", marginTop: -4, marginBottom: 12 }}>Total quantities executed across all dates</p>
+          <p style={{ fontSize: 12, color: "var(--muted)", marginTop: -4, marginBottom: 12 }}>Total quantities executed across all dates — all 14 activities shown in sequence</p>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "var(--sidebar-bg)" }}>
-                  {["#","Activity","Unit","Total Quantity"].map((h) => (
-                    <th key={h} style={{ padding: "8px 12px", textAlign: h === "Activity" || h === "#" ? "left" : "right", borderBottom: "2px solid var(--border)", color: "var(--muted)", fontWeight: 600, fontSize: 11 }}>{h}</th>
-                  ))}
+                  <th style={{ padding: "8px 12px", textAlign: "center", borderBottom: "2px solid var(--border)", color: "var(--muted)", fontWeight: 600, fontSize: 11, width: 40 }}>Sr</th>
+                  <th style={{ padding: "8px 12px", textAlign: "left",   borderBottom: "2px solid var(--border)", color: "var(--muted)", fontWeight: 600, fontSize: 11 }}>Activity</th>
+                  <th style={{ padding: "8px 12px", textAlign: "right",  borderBottom: "2px solid var(--border)", color: "var(--muted)", fontWeight: 600, fontSize: 11 }}>Unit</th>
+                  <th style={{ padding: "8px 12px", textAlign: "right",  borderBottom: "2px solid var(--border)", color: "var(--muted)", fontWeight: 600, fontSize: 11 }}>Total Quantity</th>
                 </tr>
               </thead>
               <tbody>
-                {activityAggregate.map((r, i) => (
-                  <tr key={r.name} style={{ background: i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
-                    <td style={{ padding: "7px 12px", borderBottom: "1px solid var(--border)", width: 32 }}>
-                      <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: ACTIVITY_COLORS[i % ACTIVITY_COLORS.length], verticalAlign: "middle" }} />
-                    </td>
-                    <td style={{ padding: "7px 12px", borderBottom: "1px solid var(--border)", fontWeight: 500 }}>{r.name}</td>
-                    <td style={{ padding: "7px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "var(--muted)" }}>{r.unit}</td>
-                    <td style={{ padding: "7px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 700, color: "#4ade80", fontSize: 14 }}>{fmtQty(r.total)}</td>
-                  </tr>
-                ))}
+                {activityAggregate.map((r, i) => {
+                  const done = r.total > 0;
+                  return (
+                    <tr key={r.name} style={{ background: i % 2 === 0 ? "transparent" : "var(--sidebar-bg)", opacity: done ? 1 : 0.55 }}>
+                      <td style={{ padding: "7px 12px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, borderRadius: "50%", background: done ? ACTIVITY_COLORS[i % ACTIVITY_COLORS.length] : "var(--border)", fontSize: 11, fontWeight: 700, color: done ? "#fff" : "var(--muted)" }}>{i + 1}</span>
+                      </td>
+                      <td style={{ padding: "7px 12px", borderBottom: "1px solid var(--border)", fontWeight: done ? 600 : 400, color: done ? "var(--text)" : "var(--muted)" }}>{r.name}</td>
+                      <td style={{ padding: "7px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "var(--muted)" }}>{r.unit}</td>
+                      <td style={{ padding: "7px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 700, color: done ? "#4ade80" : "var(--muted)", fontSize: done ? 14 : 13 }}>
+                        {done ? fmtQty(r.total) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -58,7 +58,27 @@ export interface DailyDPR {
   activities: ActivityItem[];
 }
 
+/* ── Master DPR activity list — fixed order, all 14 items ────────────────── */
+// Names must match exactly what parseDPR reads from the Google Sheet column B.
+const MASTER_DPR_ACTIVITIES: { srNo: number; name: string; unit: string }[] = [
+  { srNo: 1,  name: "Surface Dressing",                                   unit: "Sqm" },
+  { srNo: 2,  name: "PCC Pour",                                            unit: "Cum" },
+  { srNo: 3,  name: "Brickwork Pour",                                      unit: "Cum" },
+  { srNo: 4,  name: "Water Proofing Membrane",                             unit: "Sqm" },
+  { srNo: 5,  name: "Raft Reinforcement Works",                            unit: "MT"  },
+  { srNo: 6,  name: "HY-Rib For Stopper",                                  unit: "RMT" },
+  { srNo: 7,  name: "Footing & Raft Side Shuttering Works",                unit: "Sqm" },
+  { srNo: 8,  name: "Raft Concrete",                                       unit: "Cum" },
+  { srNo: 9,  name: "Column & Shear Wall Reinforcement Raft to B2 Level", unit: "MT"  },
+  { srNo: 10, name: "Column & Shear Wall Shuttering Raft to B2 Level",    unit: "Sqm" },
+  { srNo: 11, name: "Column & Shear Wall Concrete Raft to B2 Level",      unit: "Cum" },
+  { srNo: 12, name: "Slab Shuttering B2 Level",                            unit: "Sqm" },
+  { srNo: 13, name: "Slab Reinforcement B2 Level",                         unit: "MT"  },
+  { srNo: 14, name: "Slab Concrete B2 Level",                              unit: "Cum" },
+];
+
 /* ── DPR fallback ────────────────────────────────────────────────────────── */
+// Names updated to match the sheet exactly (same as MASTER_DPR_ACTIVITIES)
 type ActRow = [string, string, number];
 
 function dpr(date: string, acts: ActRow[]): DailyDPR {
@@ -72,24 +92,24 @@ const DPR_FALLBACK: DailyDPR[] = [
   dpr("01-May", [["Raft Reinforcement Works", "MT", 12]]),
   dpr("02-May", [["Raft Reinforcement Works", "MT", 7]]),
   dpr("03-May", [["Raft Reinforcement Works", "MT", 4]]),
-  dpr("04-May", [["Raft Reinforcement Works", "MT", 11], ["HY-Rib", "RMT", 18]]),
-  dpr("05-May", [["Raft Reinforcement Works", "MT", 8], ["Footing & Raft Side Shuttering", "Sqm", 55]]),
-  dpr("06-May", [["Raft Concrete", "Cum", 727], ["Footing & Raft Side Shuttering", "Sqm", 10], ["Column & Shear Wall Reinforcement", "MT", 1]]),
-  dpr("07-May", [["Footing & Raft Side Shuttering", "Sqm", 28], ["Raft Concrete", "Cum", 739], ["Column & Shear Wall Reinforcement", "MT", 3]]),
-  dpr("08-May", [["Raft Reinforcement Works", "MT", 1], ["Footing & Raft Side Shuttering", "Sqm", 32], ["Raft Concrete", "Cum", 245], ["Column & Shear Wall Reinforcement", "MT", 2]]),
-  dpr("09-May", [["Footing & Raft Side Shuttering", "Sqm", 60], ["Raft Concrete", "Cum", 206], ["Column & Shear Wall Reinforcement", "MT", 3]]),
-  dpr("10-May", [["Footing & Raft Side Shuttering", "Sqm", 66], ["Column & Shear Wall Shuttering", "Sqm", 12]]),
-  dpr("11-May", [["Raft Reinforcement Works", "MT", 2], ["Footing & Raft Side Shuttering", "Sqm", 55], ["Raft Concrete", "Cum", 104], ["Column & Shear Wall Reinforcement", "MT", 5.5], ["Column & Shear Wall Shuttering", "Sqm", 12]]),
-  dpr("12-May", [["Raft Reinforcement Works", "MT", 1.5], ["Footing & Raft Side Shuttering", "Sqm", 72], ["Column & Shear Wall Reinforcement", "MT", 6]]),
-  dpr("13-May", [["Column & Shear Wall Reinforcement", "MT", 7], ["Column & Shear Wall Shuttering", "Sqm", 22]]),
-  dpr("14-May", [["Footing & Raft Side Shuttering", "Sqm", 42], ["Column & Shear Wall Reinforcement", "MT", 2.5], ["Column & Shear Wall Shuttering", "Sqm", 5], ["Column & Shear Wall Concreting", "Cum", 19.2]]),
-  dpr("15-May", [["Footing & Raft Side Shuttering", "Sqm", 48], ["Raft Concrete", "Cum", 62.5], ["Column & Shear Wall Reinforcement", "MT", 6], ["Column & Shear Wall Shuttering", "Sqm", 28.8]]),
-  dpr("16-May", [["Column & Shear Wall Reinforcement", "MT", 5], ["Column & Shear Wall Shuttering", "Sqm", 26]]),
-  dpr("17-May", [["Footing & Raft Side Shuttering", "Sqm", 36], ["Column & Shear Wall Reinforcement", "MT", 4], ["Column & Shear Wall Concreting", "Cum", 20]]),
-  dpr("18-May", [["Column & Shear Wall Reinforcement", "MT", 6], ["Column & Shear Wall Shuttering", "Sqm", 62], ["Column & Shear Wall Concreting", "Cum", 9]]),
-  dpr("19-May", [["Column & Shear Wall Reinforcement", "MT", 7], ["Column & Shear Wall Shuttering", "Sqm", 40], ["Column & Shear Wall Concreting", "Cum", 15]]),
-  dpr("20-May", [["Column & Shear Wall Reinforcement", "MT", 5], ["Column & Shear Wall Shuttering", "Sqm", 52]]),
-  dpr("21-May", [["Column & Shear Wall Reinforcement", "MT", 7], ["Column & Shear Wall Shuttering", "Sqm", 72], ["Slab Shuttering (B2 Level)", "Sqm", 60]]),
+  dpr("04-May", [["Raft Reinforcement Works", "MT", 11], ["HY-Rib For Stopper", "RMT", 18]]),
+  dpr("05-May", [["Raft Reinforcement Works", "MT", 8], ["Footing & Raft Side Shuttering Works", "Sqm", 55]]),
+  dpr("06-May", [["Raft Concrete", "Cum", 727], ["Footing & Raft Side Shuttering Works", "Sqm", 10], ["Column & Shear Wall Reinforcement Raft to B2 Level", "MT", 1]]),
+  dpr("07-May", [["Footing & Raft Side Shuttering Works", "Sqm", 28], ["Raft Concrete", "Cum", 739], ["Column & Shear Wall Reinforcement Raft to B2 Level", "MT", 3]]),
+  dpr("08-May", [["Raft Reinforcement Works", "MT", 1], ["Footing & Raft Side Shuttering Works", "Sqm", 32], ["Raft Concrete", "Cum", 245], ["Column & Shear Wall Reinforcement Raft to B2 Level", "MT", 2]]),
+  dpr("09-May", [["Footing & Raft Side Shuttering Works", "Sqm", 60], ["Raft Concrete", "Cum", 206], ["Column & Shear Wall Reinforcement Raft to B2 Level", "MT", 3]]),
+  dpr("10-May", [["Footing & Raft Side Shuttering Works", "Sqm", 66], ["Column & Shear Wall Shuttering Raft to B2 Level", "Sqm", 12]]),
+  dpr("11-May", [["Raft Reinforcement Works", "MT", 2], ["Footing & Raft Side Shuttering Works", "Sqm", 55], ["Raft Concrete", "Cum", 104], ["Column & Shear Wall Reinforcement Raft to B2 Level", "MT", 5.5], ["Column & Shear Wall Shuttering Raft to B2 Level", "Sqm", 12]]),
+  dpr("12-May", [["Raft Reinforcement Works", "MT", 1.5], ["Footing & Raft Side Shuttering Works", "Sqm", 72], ["Column & Shear Wall Reinforcement Raft to B2 Level", "MT", 6]]),
+  dpr("13-May", [["Column & Shear Wall Reinforcement Raft to B2 Level", "MT", 7], ["Column & Shear Wall Shuttering Raft to B2 Level", "Sqm", 22]]),
+  dpr("14-May", [["Footing & Raft Side Shuttering Works", "Sqm", 42], ["Column & Shear Wall Reinforcement Raft to B2 Level", "MT", 2.5], ["Column & Shear Wall Shuttering Raft to B2 Level", "Sqm", 5], ["Column & Shear Wall Concrete Raft to B2 Level", "Cum", 19.2]]),
+  dpr("15-May", [["Footing & Raft Side Shuttering Works", "Sqm", 48], ["Raft Concrete", "Cum", 62.5], ["Column & Shear Wall Reinforcement Raft to B2 Level", "MT", 6], ["Column & Shear Wall Shuttering Raft to B2 Level", "Sqm", 28.8]]),
+  dpr("16-May", [["Column & Shear Wall Reinforcement Raft to B2 Level", "MT", 5], ["Column & Shear Wall Shuttering Raft to B2 Level", "Sqm", 26]]),
+  dpr("17-May", [["Footing & Raft Side Shuttering Works", "Sqm", 36], ["Column & Shear Wall Reinforcement Raft to B2 Level", "MT", 4], ["Column & Shear Wall Concrete Raft to B2 Level", "Cum", 20]]),
+  dpr("18-May", [["Column & Shear Wall Reinforcement Raft to B2 Level", "MT", 6], ["Column & Shear Wall Shuttering Raft to B2 Level", "Sqm", 62], ["Column & Shear Wall Concrete Raft to B2 Level", "Cum", 9]]),
+  dpr("19-May", [["Column & Shear Wall Reinforcement Raft to B2 Level", "MT", 7], ["Column & Shear Wall Shuttering Raft to B2 Level", "Sqm", 40], ["Column & Shear Wall Concrete Raft to B2 Level", "Cum", 15]]),
+  dpr("20-May", [["Column & Shear Wall Reinforcement Raft to B2 Level", "MT", 5], ["Column & Shear Wall Shuttering Raft to B2 Level", "Sqm", 52]]),
+  dpr("21-May", [["Column & Shear Wall Reinforcement Raft to B2 Level", "MT", 7], ["Column & Shear Wall Shuttering Raft to B2 Level", "Sqm", 72], ["Slab Shuttering B2 Level", "Sqm", 60]]),
 ];
 
 /* ── Date helpers ────────────────────────────────────────────────────────── */
@@ -289,18 +309,23 @@ function parseDPR(rows: CellValue[][], date: string): DailyDPR | null {
 }
 
 /* ── Aggregate activity quantities ───────────────────────────────────────── */
+// Always returns all 14 items from MASTER_DPR_ACTIVITIES in fixed order.
+// Items with no data recorded yet get total = 0.
 function aggregateActivities(dprData: DailyDPR[]) {
-  const m = new Map<string, { unit: string; total: number }>();
+  const totals = new Map<string, number>();
+  const unitMap = new Map<string, string>();
   for (const day of dprData) {
     for (const a of day.activities) {
-      const v = m.get(a.name) ?? { unit: a.unit, total: 0 };
-      v.total += a.quantity;
-      m.set(a.name, v);
+      totals.set(a.name, (totals.get(a.name) ?? 0) + a.quantity);
+      if (!unitMap.has(a.name)) unitMap.set(a.name, a.unit);
     }
   }
-  return [...m.entries()]
-    .map(([name, vals]) => ({ name, unit: vals.unit, total: vals.total }))
-    .sort((a, b) => b.total - a.total);
+  // Return all 14 in master list order; total=0 for not-yet-done items
+  return MASTER_DPR_ACTIVITIES.map(({ name, unit }) => ({
+    name,
+    unit: unitMap.get(name) ?? unit,
+    total: totals.get(name) ?? 0,
+  }));
 }
 
 /* ── GET handler ─────────────────────────────────────────────────────────── */
