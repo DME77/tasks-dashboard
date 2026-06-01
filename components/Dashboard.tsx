@@ -226,13 +226,6 @@ export default function Dashboard() {
             >
               {refreshing ? "⟳" : "🔄"}
             </button>
-            <button
-              className="theme-btn"
-              onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-            >
-              {theme === "dark" ? "☀️" : "🌙"}
-            </button>
           </div>
         </div>
 
