@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const SHEET_ID = "1PnmXsPlNtO_VTdgvutGyYJOTxQ5DYsIl6ufJuRfiVJM";
+const SHEET_ID = "18MtCmgE1fzgxkWOCADki5exegyA76_8bie0TXOP4e8o"; // June 2026 DLR
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const tab = searchParams.get("tab") || "26-May";
+  const tab = searchParams.get("tab") || "01-June";
 
   // Try both GViz JSON and CSV export so we can see which works
   const gvizUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}`;

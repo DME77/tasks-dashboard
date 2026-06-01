@@ -9,16 +9,19 @@ export const dynamic = "force-dynamic";
 interface MonthSheets {
   dlr: string | null;   // null = not available yet
   dpr: string | null;
+  tabStyle?: "short" | "long"; // "short" = "01-Jun" (default), "long" = "01-June"
 }
 
 const MONTH_SHEETS: Record<string, MonthSheets> = {
   "2026-4": {                                                    // May 2026
     dlr: "1udrYoj4G9IeAuTzYJqZoPS9OYJTFXdKOk1iIqUNcxuA",
     dpr: "1yzPpZR6HonSLlFk4c046AR5cgYtmD0UGhbO280FzoTk",
+    tabStyle: "short",
   },
   "2026-5": {                                                    // June 2026
-    dlr: null,                                                   // ← add June DLR ID here once shared
+    dlr: "18MtCmgE1fzgxkWOCADki5exegyA76_8bie0TXOP4e8o",
     dpr: "1qP-l-KHQ394BExBGkiiTkVWOXOh4G_I63SNyPmDlhXU",
+    tabStyle: "long",                                            // tabs named 01-June, 02-June …
   },
 };
 
@@ -139,14 +142,16 @@ const DPR_FALLBACK: DailyDPR[] = [
 ];
 
 /* ── Date helpers ────────────────────────────────────────────────────────── */
-const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_NAMES_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_NAMES_LONG  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-function formatDate(d: Date): string {
-  return `${String(d.getDate()).padStart(2, "0")}-${MONTH_NAMES[d.getMonth()]}`;
+function formatDate(d: Date, style: "short" | "long" = "short"): string {
+  const names = style === "long" ? MONTH_NAMES_LONG : MONTH_NAMES_SHORT;
+  return `${String(d.getDate()).padStart(2, "0")}-${names[d.getMonth()]}`;
 }
 
 /** Returns all dates in the given month (year/month 0-indexed) up to today. */
-function getMonthDates(year: number, month: number): string[] {
+function getMonthDates(year: number, month: number, tabStyle: "short" | "long" = "short"): string[] {
   const dates: string[] = [];
   const now             = new Date();
   const todayMidnight   = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -154,7 +159,7 @@ function getMonthDates(year: number, month: number): string[] {
   const cap             = todayMidnight <= monthEnd ? todayMidnight : monthEnd;
   const cursor          = new Date(year, month, 1);
   while (cursor <= cap) {
-    dates.push(formatDate(cursor));
+    dates.push(formatDate(cursor, tabStyle));
     cursor.setDate(cursor.getDate() + 1);
   }
   return dates;
@@ -162,7 +167,7 @@ function getMonthDates(year: number, month: number): string[] {
 
 /** Human-readable label for a month, e.g. "May-2026" */
 function monthLabel(year: number, month: number): string {
-  return `${MONTH_NAMES[month]}-${year}`;
+  return `${MONTH_NAMES_SHORT[month]}-${year}`;
 }
 
 /* ── GViz fetcher ────────────────────────────────────────────────────────── */
@@ -368,9 +373,10 @@ export async function GET(request: Request) {
   const year    = parseInt(searchParams.get("year")  ?? String(now.getFullYear()), 10);
   const month   = parseInt(searchParams.get("month") ?? String(now.getMonth()),    10); // 0-indexed
 
-  const dates  = getMonthDates(year, month);
-  const label  = monthLabel(year, month);        // e.g. "Jun-2026"
-  const sheets = getSheetsForMonth(year, month); // per-month sheet IDs
+  const sheets   = getSheetsForMonth(year, month); // per-month sheet IDs
+  const tabStyle = sheets.tabStyle ?? "short";
+  const dates    = getMonthDates(year, month, tabStyle);
+  const label    = monthLabel(year, month);        // e.g. "Jun-2026"
 
   // Only use DPR fallback for May 2026 (the month it was originally recorded for)
   const isMay2026 = year === 2026 && month === 4;
