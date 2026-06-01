@@ -2,9 +2,35 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-/* ── Sheet config ─────────────────────────────────────────────────────────── */
-const DLR_SHEET_ID = "1udrYoj4G9IeAuTzYJqZoPS9OYJTFXdKOk1iIqUNcxuA";
-const DPR_SHEET_ID = "1yzPpZR6HonSLlFk4c046AR5cgYtmD0UGhbO280FzoTk";
+/* ── Per-month sheet config ───────────────────────────────────────────────
+ *  Key format: "YYYY-M"  (M is 0-indexed JS month, e.g. May=4, Jun=5)
+ *  Add a new entry here whenever a new month's sheet is created.
+ * ────────────────────────────────────────────────────────────────────────── */
+interface MonthSheets {
+  dlr: string | null;   // null = not available yet
+  dpr: string | null;
+}
+
+const MONTH_SHEETS: Record<string, MonthSheets> = {
+  "2026-4": {                                                    // May 2026
+    dlr: "1udrYoj4G9IeAuTzYJqZoPS9OYJTFXdKOk1iIqUNcxuA",
+    dpr: "1yzPpZR6HonSLlFk4c046AR5cgYtmD0UGhbO280FzoTk",
+  },
+  "2026-5": {                                                    // June 2026
+    dlr: null,                                                   // ← add June DLR ID here once shared
+    dpr: "1qP-l-KHQ394BExBGkiiTkVWOXOh4G_I63SNyPmDlhXU",
+  },
+};
+
+/** Fallback — reuse May sheets so the page never breaks for unknown months */
+const FALLBACK_SHEETS: MonthSheets = {
+  dlr: "1udrYoj4G9IeAuTzYJqZoPS9OYJTFXdKOk1iIqUNcxuA",
+  dpr: "1yzPpZR6HonSLlFk4c046AR5cgYtmD0UGhbO280FzoTk",
+};
+
+function getSheetsForMonth(year: number, month: number): MonthSheets {
+  return MONTH_SHEETS[`${year}-${month}`] ?? FALLBACK_SHEETS;
+}
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
 
@@ -119,18 +145,24 @@ function formatDate(d: Date): string {
   return `${String(d.getDate()).padStart(2, "0")}-${MONTH_NAMES[d.getMonth()]}`;
 }
 
-function getMayDates(): string[] {
+/** Returns all dates in the given month (year/month 0-indexed) up to today. */
+function getMonthDates(year: number, month: number): string[] {
   const dates: string[] = [];
-  const now = new Date();
-  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const mayEnd  = new Date(2026, 4, 31);
-  const cap     = todayMidnight <= mayEnd ? todayMidnight : mayEnd;
-  const cursor  = new Date(2026, 4, 1);
+  const now             = new Date();
+  const todayMidnight   = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const monthEnd        = new Date(year, month + 1, 0); // last day of month
+  const cap             = todayMidnight <= monthEnd ? todayMidnight : monthEnd;
+  const cursor          = new Date(year, month, 1);
   while (cursor <= cap) {
     dates.push(formatDate(cursor));
     cursor.setDate(cursor.getDate() + 1);
   }
   return dates;
+}
+
+/** Human-readable label for a month, e.g. "May-2026" */
+function monthLabel(year: number, month: number): string {
+  return `${MONTH_NAMES[month]}-${year}`;
 }
 
 /* ── GViz fetcher ────────────────────────────────────────────────────────── */
@@ -329,16 +361,32 @@ function aggregateActivities(dprData: DailyDPR[]) {
 }
 
 /* ── GET handler ─────────────────────────────────────────────────────────── */
-export async function GET() {
-  const dates = getMayDates();
+export async function GET(request: Request) {
+  // Parse ?month=0-11&year=YYYY from query string (defaults to current month)
+  const { searchParams } = new URL(request.url);
+  const now     = new Date();
+  const year    = parseInt(searchParams.get("year")  ?? String(now.getFullYear()), 10);
+  const month   = parseInt(searchParams.get("month") ?? String(now.getMonth()),    10); // 0-indexed
+
+  const dates  = getMonthDates(year, month);
+  const label  = monthLabel(year, month);        // e.g. "Jun-2026"
+  const sheets = getSheetsForMonth(year, month); // per-month sheet IDs
+
+  // Only use DPR fallback for May 2026 (the month it was originally recorded for)
+  const isMay2026 = year === 2026 && month === 4;
+  const dprFallbackMap = isMay2026
+    ? new Map(DPR_FALLBACK.map((d) => [d.date, d]))
+    : new Map<string, DailyDPR>();
 
   const [dlrResults, dprResults, mainSheetRows] = await Promise.all([
-    Promise.all(dates.map(async (date) => ({ date, rows: await fetchGViz(DLR_SHEET_ID, date) }))),
-    Promise.all(dates.map(async (date) => ({ date, rows: await fetchGViz(DPR_SHEET_ID, date) }))),
-    fetchGViz(DLR_SHEET_ID, "Main sheet"),
+    sheets.dlr
+      ? Promise.all(dates.map(async (date) => ({ date, rows: await fetchGViz(sheets.dlr!, date) })))
+      : Promise.resolve(dates.map((date) => ({ date, rows: null }))),
+    sheets.dpr
+      ? Promise.all(dates.map(async (date) => ({ date, rows: await fetchGViz(sheets.dpr!, date) })))
+      : Promise.resolve(dates.map((date) => ({ date, rows: null }))),
+    sheets.dlr ? fetchGViz(sheets.dlr, "Main sheet") : Promise.resolve(null),
   ]);
-
-  const dprFallbackMap = new Map(DPR_FALLBACK.map((d) => [d.date, d]));
 
   const emptyDay = (date: string): DailyBilling => ({
     date, rows: [],
@@ -366,7 +414,7 @@ export async function GET() {
   });
 
   // Monthly summary from "Main sheet" tab
-  const monthly = mainSheetRows ? parseDLR(mainSheetRows, "May-2026") : null;
+  const monthly = mainSheetRows ? parseDLR(mainSheetRows, label) : null;
 
   // DLR summary (derived from daily data)
   const activeBilling  = finalBilling.filter((d) => d.totalAmount > 0);
@@ -390,6 +438,9 @@ export async function GET() {
 
   return NextResponse.json(
     {
+      month,
+      year,
+      monthLabel: label,
       daily:             finalBilling,
       monthly,
       summary:           { totalDailyExp, totalSupplyExp, totalAll, activeDays, peakDay, avgDaily },

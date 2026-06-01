@@ -42,6 +42,9 @@ interface BillingSummary {
   activeDays: number; peakDay: DailyBilling | null; avgDaily: number;
 }
 interface BillingData {
+  month: number;
+  year: number;
+  monthLabel: string;
   daily: DailyBilling[];
   monthly: DailyBilling | null;
   summary: BillingSummary;
@@ -50,6 +53,30 @@ interface BillingData {
   dprSummary: DprSummary;
 }
 type SubTab = "dlr" | "dpr";
+
+/* ── Month helpers ───────────────────────────────────────────────────────── */
+const MONTH_NAMES_FULL = ["January","February","March","April","May","June",
+  "July","August","September","October","November","December"];
+const MONTH_NAMES_SHORT = ["Jan","Feb","Mar","Apr","May","Jun",
+  "Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function getAvailableMonths(): { year: number; month: number; label: string }[] {
+  // Project started May 2026 — list every month from then to current
+  const result = [];
+  const now    = new Date();
+  const start  = new Date(2026, 4, 1); // May 2026
+  const cursor = new Date(start);
+  while (cursor.getFullYear() < now.getFullYear() ||
+        (cursor.getFullYear() === now.getFullYear() && cursor.getMonth() <= now.getMonth())) {
+    result.push({
+      year:  cursor.getFullYear(),
+      month: cursor.getMonth(),
+      label: `${MONTH_NAMES_FULL[cursor.getMonth()]} ${cursor.getFullYear()}`,
+    });
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return result.reverse(); // newest first
+}
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 const fmt    = (n: number) => "₹" + n.toLocaleString("en-IN");
@@ -662,6 +689,14 @@ function DPRDay({ row }: { row: DailyDPR }) {
 /* ── Main Billing component ─────────────────────────────────────────────── */
 /* ═══════════════════════════════════════════════════════════════════════════ */
 export default function Billing({ theme }: { theme: "dark" | "light" }) {
+  const availableMonths = useMemo(() => getAvailableMonths(), []);
+
+  const [selMonth,     setSelMonth]     = useState<{ year: number; month: number }>(
+    () => {
+      const now = new Date();
+      return { year: now.getFullYear(), month: now.getMonth() };
+    }
+  );
   const [data,         setData]         = useState<BillingData | null>(null);
   const [error,        setError]        = useState<string | null>(null);
   const [subTab,       setSubTab]       = useState<SubTab>("dlr");
@@ -669,15 +704,17 @@ export default function Billing({ theme }: { theme: "dark" | "light" }) {
   const [refreshTick,  setRefreshTick]  = useState(0);
   const [refreshing,   setRefreshing]   = useState(false);
 
+  // Re-fetch whenever month or refreshTick changes
   useEffect(() => {
     setRefreshing(true);
-    // Add timestamp to bypass browser/CDN cache on every refresh
-    fetch(`/api/billing?t=${Date.now()}`, { cache: "no-store" })
+    setSelectedDate(null);
+    const url = `/api/billing?month=${selMonth.month}&year=${selMonth.year}&t=${Date.now()}`;
+    fetch(url, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => { setData(d); setError(null); })
       .catch((e) => setError(e.message))
       .finally(() => setRefreshing(false));
-  }, [refreshTick]);
+  }, [selMonth.month, selMonth.year, refreshTick]);
 
   const activeDates = useMemo(() => data?.daily.map((d) => d.date) ?? [], [data]);
 
@@ -697,18 +734,50 @@ export default function Billing({ theme }: { theme: "dark" | "light" }) {
     [data, selectedDate]
   );
 
+  const monthDisplayLabel = `${MONTH_NAMES_FULL[selMonth.month]} ${selMonth.year}`;
+
   if (error) return <div className="error">⚠️ {error}</div>;
-  if (!data)  return <div className="loading">Loading billing data…</div>;
 
   return (
     <div>
-      {/* ── Sub-tab selector + refresh ────────────────────────────────── */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 20, alignItems: "center" }}>
+      {/* ── Top bar: sub-tabs + month selector + refresh ──────────────── */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
         <SubTabBtn active={subTab === "dpr"} icon="📋" label="DPR — Daily Progress Report" onClick={() => { setSubTab("dpr"); setSelectedDate(null); }} />
         <SubTabBtn active={subTab === "dlr"} icon="💰" label="DLR — Daily Labour Report"   onClick={() => { setSubTab("dlr"); setSelectedDate(null); }} />
         <div style={{ flex: 1 }} />
+
+        {/* Month selector */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 600 }}>MONTH</span>
+          <select
+            value={`${selMonth.year}-${selMonth.month}`}
+            onChange={(e) => {
+              const [y, m] = e.target.value.split("-").map(Number);
+              setSelMonth({ year: y, month: m });
+            }}
+            style={{
+              padding: "7px 12px",
+              borderRadius: 8,
+              border: "2px solid var(--border)",
+              background: "var(--sidebar-bg)",
+              color: "var(--text)",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              outline: "none",
+              minWidth: 160,
+            }}
+          >
+            {availableMonths.map(({ year, month, label }) => (
+              <option key={`${year}-${month}`} value={`${year}-${month}`}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <button
-          onClick={() => { setSelectedDate(null); setRefreshTick((n) => n + 1); }}
+          onClick={() => setRefreshTick((n) => n + 1)}
           disabled={refreshing}
           style={{
             padding: "8px 16px", borderRadius: 8, cursor: refreshing ? "default" : "pointer",
@@ -719,11 +788,43 @@ export default function Billing({ theme }: { theme: "dark" | "light" }) {
         >{refreshing ? "⟳ Loading…" : "🔄 Refresh"}</button>
       </div>
 
+      {/* ── Loading state ─────────────────────────────────────────────── */}
+      {refreshing && (
+        <div className="loading" style={{ marginBottom: 16 }}>
+          Loading {monthDisplayLabel} data…
+        </div>
+      )}
+
       {/* ── Date filter chips ─────────────────────────────────────────── */}
-      <DateChips dates={activeDates} selected={selectedDate} onSelect={setSelectedDate} datesWithData={datesWithData} />
+      {!refreshing && data && (
+        <>
+          {/* Month header */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10, marginBottom: 10,
+            padding: "8px 14px", borderRadius: 8,
+            background: "var(--sidebar-bg)", border: "1px solid var(--border)",
+          }}>
+            <span style={{ fontSize: 15 }}>📅</span>
+            <span style={{ fontWeight: 700, fontSize: 13 }}>{monthDisplayLabel}</span>
+            <span style={{ color: "var(--muted)", fontSize: 12 }}>
+              — {datesWithData.size} day{datesWithData.size !== 1 ? "s" : ""} with data
+              {activeDates.length > datesWithData.size
+                ? `, ${activeDates.length - datesWithData.size} without`
+                : ""}
+            </span>
+          </div>
+
+          <DateChips
+            dates={activeDates}
+            selected={selectedDate}
+            onSelect={setSelectedDate}
+            datesWithData={datesWithData}
+          />
+        </>
+      )}
 
       {/* ── DLR content ───────────────────────────────────────────────── */}
-      {subTab === "dlr" && (() => {
+      {!refreshing && data && subTab === "dlr" && (() => {
         if (selectedDate) {
           if (dlrRow && (dlrRow.totalLabour > 0 || dlrRow.totalAmount > 0)) return <DLRDay row={dlrRow} />;
           return (
@@ -738,7 +839,7 @@ export default function Billing({ theme }: { theme: "dark" | "light" }) {
       })()}
 
       {/* ── DPR content ───────────────────────────────────────────────── */}
-      {subTab === "dpr" && (() => {
+      {!refreshing && data && subTab === "dpr" && (() => {
         if (selectedDate) {
           if (dprRow) return <DPRDay row={dprRow} />;
           return (
