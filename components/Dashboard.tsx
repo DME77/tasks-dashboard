@@ -27,6 +27,7 @@ const FILTER_LABELS: Record<NonNullable<ActiveFilter>, string> = {
   pending:   "Pending Tasks",
   overdue:   "Overdue Tasks",
   week:      "Completed This Week",
+  hold:      "On Hold Tasks",
 };
 
 /* ── Helpers ────────────────────────────────────────────────────────────────── */
@@ -162,12 +163,20 @@ export default function Dashboard() {
     switch (activeFilter) {
       case "completed": return filteredTasks.filter((t) => t.completed);
       case "pending":   return filteredTasks.filter(
-        // Pending = not completed AND (no due date OR due date is today or future)
-        (t) => !t.completed && !(t.endDate && new Date(t.endDate).getTime() < midnight)
+        // Pending = not completed, not on hold, AND (no due date OR due date is today or future)
+        (t) => !t.completed &&
+          t.SubArea?.subAreaStatus !== "inactive" &&
+          !(t.endDate && new Date(t.endDate).getTime() < midnight)
       );
       case "overdue":   return filteredTasks.filter(
-        // Overdue = not completed AND due date is strictly before today
-        (t) => !t.completed && t.endDate && new Date(t.endDate).getTime() < midnight
+        // Overdue = not completed, not on hold, AND due date is strictly before today
+        (t) => !t.completed &&
+          t.SubArea?.subAreaStatus !== "inactive" &&
+          t.endDate && new Date(t.endDate).getTime() < midnight
+      );
+      case "hold":      return filteredTasks.filter(
+        // Hold = not completed AND sub-area is inactive
+        (t) => !t.completed && t.SubArea?.subAreaStatus === "inactive"
       );
       case "week":      return filteredTasks.filter(
         (t) => t.completed && t.completedAt &&

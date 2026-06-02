@@ -23,12 +23,12 @@ function mgrOf(t: Task) {
   if (!t.User) return "";
   return `${t.User.firstName || ""} ${t.User.lastName || ""}`.trim();
 }
-function statusOf(t: Task): "completed" | "overdue" | "pending" {
+function statusOf(t: Task): "completed" | "overdue" | "pending" | "hold" {
   if (t.completed) return "completed";
+  if (t.SubArea?.subAreaStatus === "inactive") return "hold";
   if (t.endDate) {
     const d = new Date();
     const midnight = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-    // Overdue = due date strictly before today; today's due date stays "pending"
     if (new Date(t.endDate).getTime() < midnight) return "overdue";
   }
   return "pending";
@@ -43,7 +43,7 @@ export default function TaskTable({ tasks }: { tasks: Task[] }) {
   const [proj, setProj] = useState("");
   const [tower, setTower] = useState("");
   const [dept, setDept] = useState("");
-  const [status, setStatus] = useState<"" | "completed" | "pending" | "overdue">("");
+  const [status, setStatus] = useState<"" | "completed" | "pending" | "overdue" | "hold">("");
   const [sortKey, setSortKey] = useState<SortKey>("endDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -130,6 +130,7 @@ export default function TaskTable({ tasks }: { tasks: Task[] }) {
           <option value="completed">Completed</option>
           <option value="pending">Pending</option>
           <option value="overdue">Overdue</option>
+          <option value="hold">On Hold</option>
         </select>
         <div className="spacer" />
         <button onClick={() => { setQ(""); setProj(""); setTower(""); setDept(""); setStatus(""); }}>
@@ -168,8 +169,9 @@ export default function TaskTable({ tasks }: { tasks: Task[] }) {
                   <td>{mgrOf(t) || "—"}</td>
                   <td>
                     {s === "completed" && <span className="badge green">Done</span>}
-                    {s === "pending" && <span className="badge gray">Pending</span>}
-                    {s === "overdue" && <span className="badge red">Overdue</span>}
+                    {s === "pending"   && <span className="badge gray">Pending</span>}
+                    {s === "overdue"   && <span className="badge red">Overdue</span>}
+                    {s === "hold"      && <span className="badge amber">On Hold</span>}
                   </td>
                   <td>{fmtDate(t.endDate)}</td>
                   <td>{fmtDate(t.completedAt)}</td>

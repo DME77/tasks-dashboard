@@ -18,7 +18,7 @@ const SELECT =
     "createdAt",
     "taskWeight",
     "order",
-    "SubArea!inner(subAreaId,subAreaName,Area!inner(areaId,areaName,Tower!inner(towerId,towerName,Project!inner(projectId,projectName,projectStatus))))",
+    "SubArea!inner(subAreaId,subAreaName,subAreaStatus,Area!inner(areaId,areaName,Tower!inner(towerId,towerName,Project!inner(projectId,projectName,projectStatus))))",
     "Department(Id,name)",
     "User(userId,firstName,lastName)",
   ].join(",");

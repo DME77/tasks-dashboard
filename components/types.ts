@@ -11,6 +11,7 @@ export type Task = {
   SubArea?: {
     subAreaId: string;
     subAreaName: string;
+    subAreaStatus?: string;
     Area?: {
       areaId: string;
       areaName: string;
@@ -29,7 +30,7 @@ export type Task = {
   User?: { userId: string; firstName: string; lastName: string } | null;
 };
 
-export type ActiveFilter = "completed" | "pending" | "overdue" | "week" | null;
+export type ActiveFilter = "completed" | "pending" | "overdue" | "week" | "hold" | null;
 
 export type SubAreaNode = { subAreaId: string; subAreaName: string; subAreaStatus: string };
 export type AreaNode = { areaId: string; areaName: string; areaStatus: string; SubArea: SubAreaNode[] };

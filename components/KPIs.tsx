@@ -7,10 +7,12 @@ function todayMidnight() {
 }
 function isOverdue(t: Task) {
   if (t.completed) return false;
+  if (t.SubArea?.subAreaStatus === "inactive") return false; // hold tasks are not overdue
   if (!t.endDate) return false;
-  // Overdue = due date is strictly BEFORE today (past days only)
-  // Today's tasks remain "pending" until the day is over
   return new Date(t.endDate).getTime() < todayMidnight();
+}
+function isOnHold(t: Task) {
+  return !t.completed && t.SubArea?.subAreaStatus === "inactive";
 }
 
 interface KpiItem {
@@ -33,8 +35,9 @@ export default function KPIs({
 }) {
   const total     = tasks.length;
   const completed = tasks.filter((t) => t.completed).length;
+  const hold      = tasks.filter(isOnHold).length;
   const overdue   = tasks.filter(isOverdue).length;
-  const pending   = total - completed - overdue;
+  const pending   = total - completed - overdue - hold;
   const pct       = total ? Math.round((completed / total) * 100) : 0;
 
   const now          = Date.now();
@@ -77,6 +80,15 @@ export default function KPIs({
       colorClass: "kpi-red",
       filter: "overdue",
     },
+    // Only shown when the current filter contains on-hold tasks
+    ...(hold > 0 ? [{
+      label: "On Hold",
+      value: hold,
+      delta: "Inactive sub-areas",
+      icon: "⏸️",
+      colorClass: "kpi-amber",
+      filter: "hold" as const,
+    }] : []),
     {
       label: "Done last 7 days",
       value: completedThisWeek,
