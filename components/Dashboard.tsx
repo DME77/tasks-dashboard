@@ -5,6 +5,7 @@ import Charts from "./Charts";
 import TaskTable from "./TaskTable";
 import DrillDown from "./DrillDown";
 import Billing from "./Billing";
+import Manpower from "./Manpower";
 import type { Task, ProjectNode, TowerNode, AreaNode, ActiveFilter } from "./types";
 
 /* ── Constants ──────────────────────────────────────────────────────────────── */
@@ -12,10 +13,11 @@ const PROJECT_ID   = "cmnjvabgp0077keve33sbnh4c";
 const PROJECT_NAME = "Homeland Global Park";
 
 const TABS = [
-  { id: "overview",   label: "Overview",   icon: "📊" },
-  { id: "tasks",      label: "Tasks",      icon: "✅" },
-  { id: "hierarchy",  label: "Hierarchy",  icon: "🌳" },
-  { id: "billing",    label: "Billing",    icon: "💰" },
+  { id: "overview",   label: "Overview",          icon: "📊" },
+  { id: "tasks",      label: "Tasks",              icon: "✅" },
+  { id: "hierarchy",  label: "Hierarchy",          icon: "🌳" },
+  { id: "billing",    label: "Billing",            icon: "💰" },
+  { id: "manpower",   label: "Daily Manpower",     icon: "👷" },
 ] as const;
 type TabId = typeof TABS[number]["id"];
 
@@ -273,7 +275,7 @@ export default function Dashboard() {
         {filteredTasks && (
           <>
             {/* ── Tower / Area category cards — hidden on Billing tab ─── */}
-            {activeTab !== "billing" && <><section className="category-section">
+            {activeTab !== "billing" && activeTab !== "manpower" && <><section className="category-section">
               <div className="section-header">
                 <span className="section-title">🏗️ All Towers</span>
                 <span className="live-chip">LIVE</span>
@@ -441,6 +443,11 @@ export default function Dashboard() {
             {/* ── BILLING tab ───────────────────────────────────────────────── */}
             {activeTab === "billing" && (
               <Billing theme={theme} />
+            )}
+
+            {/* ── MANPOWER tab ──────────────────────────────────────────────── */}
+            {activeTab === "manpower" && (
+              <Manpower theme={theme} />
             )}
           </>
         )}

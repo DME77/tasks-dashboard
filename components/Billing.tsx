@@ -83,13 +83,22 @@ const fmt    = (n: number) => "₹" + n.toLocaleString("en-IN");
 const fmtQty = (n: number) => Number.isInteger(n) ? String(n) : n.toFixed(1);
 
 function catIcon(cat: string): string {
-  const lc = cat.toLowerCase();
-  if (lc.includes("mason")) return "🧱";
-  if (lc.includes("helper")) return "🔧";
+  const lc = cat.toLowerCase().trim();
+  if (lc === "mason")                       return "🧱";
+  if (lc === "m.helper" || lc === "m helper") return "🔧";
+  if (lc === "f" || lc === "fabricator")    return "🏗️";
+  if (lc === "f-h" || lc === "f-helper")    return "🔩";
+  if (lc === "cr" || lc === "crane")        return "🏗️";
+  if (lc === "cr-h" || lc === "cr-helper")  return "⚙️";
   if (lc.includes("sup") || lc.includes("for")) return "👷";
-  if (lc.includes("cook")) return "🍳";
+  if (lc === "weld" || lc === "welder")     return "🔥";
+  if (lc === "weld-h" || lc === "weld-helper") return "⚡";
+  if (lc === "scaff" || lc.includes("scaffold")) return "🪜";
+  if (lc.includes("elec") || lc.includes("plum")) return "💡";
+  if (lc.includes("cook"))                  return "🍳";
+  if (lc.includes("helper"))                return "🔧";
   if (lc.includes("chowk") || lc.includes("local")) return "🏘️";
-  if (lc.includes("fare")) return "🚌";
+  if (lc.includes("fare"))                  return "🚌";
   return "👥";
 }
 

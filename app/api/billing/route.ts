@@ -261,8 +261,8 @@ function parseDLR(rows: CellValue[][], date: string): DailyBilling | null {
       continue;
     }
 
-    // Category rows: SR.NO. 1–10
-    if (!isNaN(srNo) && srNo >= 1 && srNo <= 10) {
+    // Category rows: SR.NO. 1–20 (supports up to 20 categories)
+    if (!isNaN(srNo) && srNo >= 1 && srNo <= 20) {
       categories.push({
         srNo,
         category:      catRaw,
