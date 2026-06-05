@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, Legend, CartesianGrid, LineChart, Line,
+  XAxis, YAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid, LineChart, Line,
 } from "recharts";
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
@@ -190,14 +190,6 @@ function ManpowerAll({ dailyManpower, theme }: { dailyManpower: ManpowerCounts[]
     total: dailyManpower.reduce((s, d) => s + (d[c.key] as number), 0),
   })).filter(c => c.total > 0);
 
-  // Daily stacked bar data
-  const chartData = activeDays.map(d => ({
-    date: d.date,
-    Mason: d.mason, "M.Helper": d.mHelper, F: d.f, "F-H": d.fH,
-    CR: d.cr, "CR-H": d.crH, "SUP/FOR": d.supFor, WELD: d.weld,
-    "WELD-H": d.weldH, SCAFF: d.scaff, "ELEC/PLUM": d.elecPlum, COOK: d.cook,
-  }));
-
   // Trend line
   const trendData = dailyManpower.map(d => ({ date: d.date, total: d.total }));
 
@@ -242,31 +234,6 @@ function ManpowerAll({ dailyManpower, theme }: { dailyManpower: ManpowerCounts[]
           </div>
         ))}
       </div>
-
-      {/* Stacked bar chart */}
-      {chartData.length > 0 && (
-        <div className="panel" style={{ marginBottom: 16 }}>
-          <h3>Daily Manpower — All 12 Categories (Stacked)</h3>
-          <p style={{ fontSize: 12, color: "var(--muted)", marginTop: -4, marginBottom: 12 }}>
-            Each bar segment = one labour category. Hover for breakdown.
-          </p>
-          <div style={{ width: "100%", height: 280 }}>
-            <ResponsiveContainer>
-              <BarChart data={chartData} margin={{ top: 8, right: 16, bottom: 44, left: 0 }}>
-                <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
-                <XAxis dataKey="date" stroke={axisColor} tick={{ fontSize: 10 }}
-                  angle={-35} textAnchor="end" height={55} interval={0} />
-                <YAxis stroke={axisColor} tick={{ fontSize: 10 }} allowDecimals={false} />
-                <Tooltip content={<MpTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                {CATEGORIES.map(c => (
-                  <Bar key={c.key} dataKey={c.label} stackId="a" fill={c.color} />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
 
       {/* Trend line */}
       {trendData.some(d => d.total > 0) && (

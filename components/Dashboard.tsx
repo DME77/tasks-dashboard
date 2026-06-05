@@ -6,7 +6,14 @@ import TaskTable from "./TaskTable";
 import Billing from "./Billing";
 import Manpower from "./Manpower";
 import Drawings from "./Drawings";
+import DWallDrawing, { type DWallData } from "./DWallDrawing";
 import type { Task, ProjectNode, TowerNode, AreaNode, ActiveFilter } from "./types";
+
+/** True when a tower/area name refers to the diaphragm (D) wall, e.g. "D -Wall Work". */
+function isDWallName(name?: string | null): boolean {
+  if (!name) return false;
+  return name.replace(/[\s\-]/g, "").toLowerCase().includes("dwall");
+}
 
 /* ── Constants ──────────────────────────────────────────────────────────────── */
 const PROJECT_ID   = "cmnjvabgp0077keve33sbnh4c";
@@ -49,6 +56,8 @@ export default function Dashboard() {
   const [selectedArea,  setSelectedArea]  = useState<string | null>(null); // areaId
   const [activeFilter,  setActiveFilter]  = useState<ActiveFilter>(null);
   const [refreshing,    setRefreshing]    = useState(false);
+  const [dwallData,     setDwallData]     = useState<DWallData | null>(null);
+  const [dwallLoading,  setDwallLoading]  = useState(false);
 
   /* ── Theme persistence ──────────────────────────────────────────────────── */
   useEffect(() => {
@@ -206,6 +215,21 @@ export default function Dashboard() {
   /* ── Render ─────────────────────────────────────────────────────────────── */
   const allTotal     = projectTasks?.length ?? 0;
   const allCompleted = projectTasks?.filter((t) => t.completed).length ?? 0;
+
+  // "D -Wall Work" area selected? (DWG button only shows then)
+  const selectedAreaName = areas.find((a) => a.areaId === selectedArea)?.areaName;
+  const dwallAreaSelected = isDWallName(selectedAreaName);
+
+  // Fetch live D-Wall panel status the first time the D-Wall area is opened
+  useEffect(() => {
+    if (!dwallAreaSelected || dwallData) return;
+    setDwallLoading(true);
+    fetch(`/api/dwall?t=${Date.now()}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => { if (!d.error) setDwallData(d); })
+      .catch(() => {})
+      .finally(() => setDwallLoading(false));
+  }, [dwallAreaSelected, dwallData]);
 
   return (
     <div className="app-shell">
@@ -418,6 +442,11 @@ export default function Dashboard() {
                     </div>
                     <TaskTable key={activeFilter} tasks={cardTasks} />
                   </div>
+                )}
+
+                {/* ── D-Wall drawing — shown inline only when "D -Wall Work" area is selected ── */}
+                {dwallAreaSelected && (
+                  <DWallDrawing inline data={dwallData} loading={dwallLoading} />
                 )}
 
                 <Charts tasks={filteredTasks} theme={theme} />
