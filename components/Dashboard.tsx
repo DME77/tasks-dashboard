@@ -5,6 +5,7 @@ import Charts from "./Charts";
 import TaskTable from "./TaskTable";
 import Billing from "./Billing";
 import Manpower from "./Manpower";
+import Drawings from "./Drawings";
 import type { Task, ProjectNode, TowerNode, AreaNode, ActiveFilter } from "./types";
 
 /* ── Constants ──────────────────────────────────────────────────────────────── */
@@ -433,13 +434,7 @@ export default function Dashboard() {
 
             {/* ── DRAWINGS tab ──────────────────────────────────────────────── */}
             {activeTab === "drawings" && (
-              <div className="panel" style={{ textAlign: "center", padding: "60px 24px" }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>📐</div>
-                <h3 style={{ marginBottom: 8 }}>Drawings</h3>
-                <p style={{ color: "var(--muted)", fontSize: 14 }}>
-                  Drawings section coming soon. Upload and manage project drawings here.
-                </p>
-              </div>
+              <Drawings />
             )}
 
             {/* ── BILLING tab ───────────────────────────────────────────────── */}
