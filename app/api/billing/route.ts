@@ -14,20 +14,20 @@ interface MonthSheets {
 
 const MONTH_SHEETS: Record<string, MonthSheets> = {
   "2026-4": {                                                    // May 2026
-    dlr: "1udrYoj4G9IeAuTzYJqZoPS9OYJTFXdKOk1iIqUNcxuA",
+    dlr: "1PnmXsPlNtO_VTdgvutGyYJOTxQ5DYsIl6ufJuRfiVJM",       // ACC DLR May
     dpr: "1yzPpZR6HonSLlFk4c046AR5cgYtmD0UGhbO280FzoTk",
-    tabStyle: "short",
+    tabStyle: "short",                                           // tabs: 01-May, 02-May …
   },
   "2026-5": {                                                    // June 2026
-    dlr: "18MtCmgE1fzgxkWOCADki5exegyA76_8bie0TXOP4e8o",
+    dlr: "1czJph4BZLlVvxQKcDl8jeJ5WJgmANtF3SH2eRw34D10",       // ACC DLR June
     dpr: "1qP-l-KHQ394BExBGkiiTkVWOXOh4G_I63SNyPmDlhXU",
-    tabStyle: "long",                                            // tabs named 01-June, 02-June …
+    tabStyle: "long",                                            // tabs: 01-June, 02-June …
   },
 };
 
 /** Fallback — reuse May sheets so the page never breaks for unknown months */
 const FALLBACK_SHEETS: MonthSheets = {
-  dlr: "1udrYoj4G9IeAuTzYJqZoPS9OYJTFXdKOk1iIqUNcxuA",
+  dlr: "1PnmXsPlNtO_VTdgvutGyYJOTxQ5DYsIl6ufJuRfiVJM",
   dpr: "1yzPpZR6HonSLlFk4c046AR5cgYtmD0UGhbO280FzoTk",
 };
 
@@ -225,87 +225,192 @@ function parseQuantity(val: CellValue): number {
   return 0;
 }
 
-/* ── DLR parser ──────────────────────────────────────────────────────────── */
+/* ── Manpower counts type ────────────────────────────────────────────────── */
+export interface ManpowerCounts {
+  date: string;
+  mason: number; mHelper: number; f: number; fH: number;
+  cr: number; crH: number; supFor: number; weld: number;
+  weldH: number; scaff: number; elecPlum: number; cook: number;
+  totalDay: number; nightMason: number; nightHelper: number; totalNight: number;
+  total: number;
+}
+
+/* ── DLR parser — new ACC sheet format ──────────────────────────────────────
+ * Sheet layout per daily tab:
+ *   Section 1: ACC Staff Attendance (ignored)
+ *   Section 2: DAILY MANPOWER REPORT
+ *     rows 1-11 = work description rows with category counts in cols 3-14
+ *     TOTAL row = col[1]="TOTAL", col[2]="Nos", cols 3-14 = category totals,
+ *                 col[15]=day subtotal, col[16]=night Mason, col[17]=night Helper,
+ *                 col[18]=night subtotal
+ *     Expense row = immediately after TOTAL (col[0,1,2] all null),
+ *                   col[15]=day expense total, col[18]=night expense total
+ *     OR for Main sheet: col[1]="Till date expense"
+ *   Section 3: Supply Labour billing
+ *     "Description" header row
+ *     Mason / M.Helper/Helper / SUP/FOR / Cook / Chowk / Fare rows
+ *       col[3]=day count, col[5]=day amount, col[6]=night count, col[8]=night amount
+ *     Total row: col[1]="Total", col[3]=day total, col[5]=day total amt,
+ *                col[6]=night total, col[8]=night total amt
+ *
+ * Total expenditure = directManpowerExpense (Section 2) + supplyLabourExpense (Section 3)
+ * ─────────────────────────────────────────────────────────────────────────── */
 function parseDLR(rows: CellValue[][], date: string): DailyBilling | null {
   const categories: CategoryBilling[] = [];
-  let totalDayLabour    = 0, totalNightLabour   = 0, totalDailyExpense  = 0;
-  let totalDaySupply    = 0, totalNightSupply   = 0, totalSupplyExpense = 0;
-  let totalLabour       = 0, totalAmount        = 0;
-  let foundTotal        = false;
+  let directDayExp = 0, directNightExp = 0;   // from DAILY MANPOWER REPORT expense row
+  let totalDayLabour = 0, totalNightLabour = 0;
+  let totalDailyExpense = 0, totalSupplyExpense = 0;
+  let totalLabour = 0, totalAmount = 0;
+  let inBillingSection = false;
+  let foundTotal = false;
+  let lastRowWasManpowerTotal = false;
+  let srNo = 1;
 
   for (const row of rows) {
-    if (!row || row.length < 2) continue;
+    if (!row || row.length < 2) { lastRowWasManpowerTotal = false; continue; }
 
-    const srRaw = row[0];
-    const srNo  = typeof srRaw === "number" ? srRaw
-                : typeof srRaw === "string" ? parseFloat(srRaw) : NaN;
+    const c0  = typeof row[0] === "string" ? row[0].trim() : "";
+    const c1  = typeof row[1] === "string" ? row[1].trim() : "";
+    const c2  = typeof row[2] === "string" ? row[2].trim() : "";
+    const c1l = c1.toLowerCase();
+    const c2l = c2.toLowerCase();
 
-    const catRaw = typeof row[1] === "string" ? row[1].trim() : "";
-    const catLc  = catRaw.toLowerCase();
+    // ── Detect DAILY MANPOWER REPORT TOTAL row ───────────────────────────
+    // Daily sheets: col[0]=null, col[1]="TOTAL", col[2]="Nos"
+    // Main sheet:   col[0]="TOTAL", col[1]=null,  col[2]="Nos"
+    const isMpTotal = (c2l === "nos") &&
+      (c1.toUpperCase() === "TOTAL" || c0.toUpperCase() === "TOTAL");
 
-    // Skip header / empty rows
-    if (!catRaw) continue;
-    if (catLc === "category" || catLc.startsWith("s.no") || catLc.startsWith("sr.no")) continue;
-
-    // "Total labour" row — grab grand totals
-    if (catLc.includes("total")) {
-      totalDayLabour     = toNum(row[2]);
-      totalNightLabour   = toNum(row[3]);
-      totalDailyExpense  = parseAmount(row[4]);
-      totalDaySupply     = toNum(row[5]);
-      totalNightSupply   = toNum(row[6]);
-      totalSupplyExpense = parseAmount(row[7]);
-      totalLabour        = toNum(row[8]);
-      totalAmount        = parseAmount(row[9]);
-      foundTotal = true;
+    if (isMpTotal) {
+      lastRowWasManpowerTotal = true;
       continue;
     }
 
-    // Category rows: SR.NO. 1–20 (supports up to 20 categories)
-    if (!isNaN(srNo) && srNo >= 1 && srNo <= 20) {
-      categories.push({
-        srNo,
-        category:      catRaw,
-        dayLabour:     toNum(row[2]),
-        nightLabour:   toNum(row[3]),
-        dailyExpense:  parseAmount(row[4]),
-        daySupply:     toNum(row[5]),
-        nightSupply:   toNum(row[6]),
-        supplyExpense: parseAmount(row[7]),
-        totalLabour:   toNum(row[8]),
-        totalAmount:   parseAmount(row[9]),
-      });
+    // ── Expense row immediately after TOTAL (daily sheets) ───────────────
+    // All of col[0], col[1], col[2] are null/empty; col[15] = day total, col[18] = night total
+    if (lastRowWasManpowerTotal && !c0 && !c1 && !c2 && row.length > 15) {
+      directDayExp   = toNum(row[15]);
+      directNightExp = toNum(row[18]);
+      lastRowWasManpowerTotal = false;
+      continue;
     }
+
+    // ── "Till date expense" row (Main sheet) ─────────────────────────────
+    if (c1l === "till date expense") {
+      directDayExp   = toNum(row[15]);
+      directNightExp = toNum(row[18]);
+      lastRowWasManpowerTotal = false;
+      continue;
+    }
+
+    lastRowWasManpowerTotal = false;
+
+    // ── Start of Supply Labour billing section ────────────────────────────
+    if (c1l === "description") {
+      inBillingSection = true;
+      continue;
+    }
+
+    if (!inBillingSection) continue;
+
+    // ── Supply Labour Total row: col[1]="Total", col[2] NOT "Nos" ─────────
+    if (c1l === "total" && c2l !== "nos") {
+      const supplyDayNos = toNum(row[3]);
+      const supplyDayAmt = parseAmount(row[5]);
+      const supplyNightNos = toNum(row[6]);
+      const supplyNightAmt = parseAmount(row[8]);
+      totalDayLabour    = supplyDayNos;
+      totalNightLabour  = supplyNightNos;
+      totalDailyExpense = directDayExp + supplyDayAmt;
+      totalSupplyExpense= directNightExp + supplyNightAmt;
+      totalLabour       = totalDayLabour + totalNightLabour;
+      totalAmount       = totalDailyExpense + totalSupplyExpense;
+      foundTotal = true;
+      break;
+    }
+
+    // ── Fare row: col[1] empty, col[2] = "Fare" ──────────────────────────
+    let category = c1;
+    if (!c1 && c2.toLowerCase() === "fare") category = "Fare";
+    if (!category) continue;
+
+    const dayNos  = toNum(row[3]);
+    const dayAmt  = parseAmount(row[5]);
+    const nightNos= toNum(row[6]);
+    const nightAmt= parseAmount(row[8]);
+
+    categories.push({
+      srNo: srNo++,
+      category,
+      dayLabour:    dayNos,
+      nightLabour:  nightNos,
+      dailyExpense: dayAmt,
+      daySupply:    0,
+      nightSupply:  0,
+      supplyExpense:nightAmt,
+      totalLabour:  dayNos + nightNos,
+      totalAmount:  dayAmt + nightAmt,
+    });
   }
 
-  if (!categories.length && !foundTotal) return null;
-
-  // Derive totals from categories if "Total labour" row not found
+  // Fallback: derive totals from categories when Total row not found
   if (!foundTotal && categories.length > 0) {
-    totalDayLabour     = categories.reduce((s, c) => s + c.dayLabour,     0);
-    totalNightLabour   = categories.reduce((s, c) => s + c.nightLabour,   0);
-    totalDailyExpense  = categories.reduce((s, c) => s + c.dailyExpense,  0);
-    totalDaySupply     = categories.reduce((s, c) => s + c.daySupply,     0);
-    totalNightSupply   = categories.reduce((s, c) => s + c.nightSupply,   0);
-    totalSupplyExpense = categories.reduce((s, c) => s + c.supplyExpense, 0);
-    totalLabour        = categories.reduce((s, c) => s + c.totalLabour,   0);
-    totalAmount        = categories.reduce((s, c) => s + c.totalAmount,   0);
+    totalDayLabour    = categories.reduce((s, c) => s + c.dayLabour,    0);
+    totalNightLabour  = categories.reduce((s, c) => s + c.nightLabour,  0);
+    const supDay      = categories.reduce((s, c) => s + c.dailyExpense, 0);
+    const supNight    = categories.reduce((s, c) => s + c.supplyExpense,0);
+    totalDailyExpense = directDayExp   + supDay;
+    totalSupplyExpense= directNightExp + supNight;
+    totalLabour       = totalDayLabour + totalNightLabour;
+    totalAmount       = totalDailyExpense + totalSupplyExpense;
   }
 
   if (totalAmount === 0 && totalLabour === 0) return null;
 
   return {
-    date,
-    rows: categories,
-    totalDayLabour,
-    totalNightLabour,
-    totalDailyExpense,
-    totalDaySupply,
-    totalNightSupply,
-    totalSupplyExpense,
-    totalLabour,
-    totalAmount,
+    date, rows: categories,
+    totalDayLabour, totalNightLabour,
+    totalDailyExpense, totalDaySupply: 0,
+    totalNightSupply: 0, totalSupplyExpense,
+    totalLabour, totalAmount,
   };
+}
+
+/* ── Manpower parser — reads DAILY MANPOWER REPORT TOTAL row ────────────── */
+function parseManpowerCounts(rows: CellValue[][], date: string): ManpowerCounts | null {
+  for (const row of rows) {
+    if (!row || row.length < 16) continue;
+    const c0 = typeof row[0] === "string" ? row[0].trim() : "";
+    const c1 = typeof row[1] === "string" ? row[1].trim() : "";
+    const c2 = typeof row[2] === "string" ? row[2].trim().toLowerCase() : "";
+    const isTotal = c2 === "nos" &&
+      (c1.toUpperCase() === "TOTAL" || c0.toUpperCase() === "TOTAL");
+    if (!isTotal) continue;
+
+    const mason    = toNum(row[3]);
+    const mHelper  = toNum(row[4]);
+    const f        = toNum(row[5]);
+    const fH       = toNum(row[6]);
+    const cr       = toNum(row[7]);
+    const crH      = toNum(row[8]);
+    const supFor   = toNum(row[9]);
+    const weld     = toNum(row[10]);
+    const weldH    = toNum(row[11]);
+    const scaff    = toNum(row[12]);
+    const elecPlum = toNum(row[13]);
+    const cook     = toNum(row[14]);
+    const totalDay   = toNum(row[15]);
+    const nightMason = toNum(row[16]);
+    const nightHelper= toNum(row[17]);
+    const totalNight = toNum(row[18]);
+    const total      = totalDay + totalNight;
+    if (total === 0) return null;
+    return {
+      date, mason, mHelper, f, fH, cr, crH, supFor, weld, weldH,
+      scaff, elecPlum, cook, totalDay, nightMason, nightHelper, totalNight, total,
+    };
+  }
+  return null;
 }
 
 /* ── DPR parser — activity quantities (Work Progress section) only ────────── */
@@ -410,6 +515,21 @@ export async function GET(request: Request) {
     return emptyDay(date);
   });
 
+  // Manpower counts: parse from same DLR tab rows (DAILY MANPOWER REPORT TOTAL row)
+  const emptyManpower = (date: string): ManpowerCounts => ({
+    date, mason:0, mHelper:0, f:0, fH:0, cr:0, crH:0,
+    supFor:0, weld:0, weldH:0, scaff:0, elecPlum:0, cook:0,
+    totalDay:0, nightMason:0, nightHelper:0, totalNight:0, total:0,
+  });
+  const finalManpower: ManpowerCounts[] = dates.map((date) => {
+    const live = dlrResults.find((r) => r.date === date);
+    if (live?.rows) {
+      const parsed = parseManpowerCounts(live.rows, date);
+      if (parsed) return parsed;
+    }
+    return emptyManpower(date);
+  });
+
   const finalDPR: DailyDPR[] = dates.map((date) => {
     const live = dprResults.find((r) => r.date === date);
     if (live?.rows) {
@@ -450,6 +570,7 @@ export async function GET(request: Request) {
       daily:             finalBilling,
       monthly,
       summary:           { totalDailyExp, totalSupplyExp, totalAll, activeDays, peakDay, avgDaily },
+      dailyManpower:     finalManpower,
       dpr:               finalDPR,
       activityAggregate: aggregateActivities(finalDPR),
       dprSummary:        {
