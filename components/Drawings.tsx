@@ -6,7 +6,7 @@ type DrawingStatus = "Received" | "N/A" | "Advance Copy" | "Partial" | "Pending"
 
 interface TrackerDrawing {
   srNo: number; discipline: string; category: string;
-  name: string; type: string; remarks: string; status: DrawingStatus;
+  name: string; link: string | null; type: string; remarks: string; status: DrawingStatus;
 }
 interface UpcomingDrawing {
   srNo: number; name: string; location: string; date: string; comments: string;
@@ -295,7 +295,15 @@ function StatusView({
                     borderRadius: 5, padding: "2px 7px", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap",
                   }}>{d.discipline || "—"}</span>
                 </td>
-                <td style={{ fontWeight: 500 }}>{d.name}</td>
+                <td style={{ fontWeight: 500 }}>
+                  {d.link ? (
+                    <a href={d.link} target="_blank" rel="noreferrer"
+                      style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}
+                      title="Open drawing">
+                      🔗 {d.name}
+                    </a>
+                  ) : d.name}
+                </td>
                 <td style={{ color: "var(--muted)", fontSize: 12, whiteSpace: "nowrap" }}>{d.type || "—"}</td>
                 <td><StatusBadge status={d.status} /></td>
                 <td style={{ color: "var(--muted)", fontSize: 12, maxWidth: 260 }}>{d.remarks || "—"}</td>

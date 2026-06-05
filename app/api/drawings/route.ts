@@ -5,8 +5,9 @@ export const dynamic = "force-dynamic";
 const SHEET_ID = "1MJMschYqRO8p4tLtNrO-N7ctXTmU1UcEHpzW4BnjATE";
 
 type CellValue = string | number | null;
+type Cell = { v: CellValue; link: string | null };
 
-async function fetchGViz(tabName: string): Promise<CellValue[][] | null> {
+async function fetchGViz(tabName: string): Promise<Cell[][] | null> {
   const url =
     `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq` +
     `?tqx=out:json&sheet=${encodeURIComponent(tabName)}`;
@@ -18,16 +19,23 @@ async function fetchGViz(tabName: string): Promise<CellValue[][] | null> {
     if (!match) return null;
     const json = JSON.parse(match[1]);
     if (json.status !== "ok") return null;
+    // Capture both cell value and hyperlink (stored in cell.p.linkToUrl by GViz)
     return (json.table.rows as any[]).map((row: any) =>
-      ((row.c as any[]) || []).map((cell: any) => cell?.v ?? null)
+      ((row.c as any[]) || []).map((cell: any) => ({
+        v:    cell?.v ?? null,
+        link: cell?.p?.linkToUrl ?? null,
+      }))
     );
   } catch { return null; }
 }
 
-function str(v: CellValue | undefined): string {
+function val(cell: Cell | undefined): CellValue { return cell?.v ?? null; }
+function str(cell: Cell | undefined): string {
+  const v = val(cell);
   if (v == null) return "";
   return String(v).trim();
 }
+function link(cell: Cell | undefined): string | null { return cell?.link ?? null; }
 
 /* ── Parse Upcoming Plan sheet ───────────────────────────────────────────── */
 export interface UpcomingDrawing {
@@ -38,17 +46,17 @@ export interface UpcomingDrawing {
   comments: string;
 }
 
-function parseUpcoming(rows: CellValue[][]): UpcomingDrawing[] {
+function parseUpcoming(rows: Cell[][]): UpcomingDrawing[] {
   const items: UpcomingDrawing[] = [];
   for (const row of rows) {
     if (!row || row.length < 2) continue;
-    const srNo = typeof row[0] === "number" ? row[0] : parseFloat(str(row[0]));
-    if (isNaN(srNo)) continue;       // skip header & empty rows
+    const v0   = val(row[0]);
+    const srNo = typeof v0 === "number" ? v0 : parseFloat(str(row[0]));
+    if (isNaN(srNo)) continue;
     const name = str(row[1]);
     if (!name) continue;
     items.push({
-      srNo,
-      name,
+      srNo, name,
       location: str(row[2]),
       date:     str(row[3]),
       comments: str(row[4]),
@@ -63,6 +71,7 @@ export interface TrackerDrawing {
   discipline: string;
   category: string;
   name: string;
+  link: string | null;   // hyperlink from col C or col D if present
   type: string;
   remarks: string;
   status: "Received" | "N/A" | "Advance Copy" | "Partial" | "Pending";
@@ -77,7 +86,7 @@ function deriveStatus(rawStatus: string, remarks: string): TrackerDrawing["statu
   return "Pending";
 }
 
-function parseTracker(rows: CellValue[][]): TrackerDrawing[] {
+function parseTracker(rows: Cell[][]): TrackerDrawing[] {
   const drawings: TrackerDrawing[] = [];
   let discipline = "";
 
@@ -91,17 +100,11 @@ function parseTracker(rows: CellValue[][]): TrackerDrawing[] {
     // Skip the header row
     if (c0 === "Folder Link" || c1 === "S.no." || c3 === "DWG") continue;
 
-    // Discipline label (col0 has text, col1 empty or starts new group)
+    // Discipline label
     if (c0 && c0 !== "Folder Link") {
       const srNo = parseFloat(c1);
-      if (isNaN(srNo)) {
-        // Pure discipline label row
-        discipline = c0;
-        continue;
-      } else {
-        // First drawing in a discipline (discipline + srNo on same row)
-        discipline = c0;
-      }
+      if (isNaN(srNo)) { discipline = c0; continue; }
+      else discipline = c0;
     }
 
     const srNo = parseFloat(c1);
@@ -110,11 +113,14 @@ function parseTracker(rows: CellValue[][]): TrackerDrawing[] {
     const rawStatus = str(row[6]);
     const remarks   = str(row[5]);
 
+    // Prefer link from col C (index 2), fall back to col D (index 3 = DWG name)
+    const drawingLink = link(row[2]) ?? link(row[3]) ?? null;
+
     drawings.push({
-      srNo,
-      discipline,
+      srNo, discipline,
       category: str(row[2]),
       name:     c3,
+      link:     drawingLink,
       type:     str(row[4]),
       remarks,
       status:   deriveStatus(rawStatus, remarks),
