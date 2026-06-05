@@ -321,57 +321,115 @@ function StatusView({
   );
 }
 
+/* ── Project card selector ───────────────────────────────────────────────── */
+type ProjectId = "cp-atelier" | "hgp";
+
+const PROJECTS: { id: ProjectId; label: string; icon: string; sub: string }[] = [
+  { id: "cp-atelier", label: "CP Atelier",           icon: "🏗️", sub: "Homeland Global Park – Tower" },
+  { id: "hgp",        label: "HGP",                  icon: "🏘️", sub: "Homeland Global Park – Master" },
+];
+
+function ProjectCards({
+  active, onSelect,
+}: { active: ProjectId; onSelect: (id: ProjectId) => void }) {
+  return (
+    <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+      {PROJECTS.map(p => {
+        const isActive = active === p.id;
+        return (
+          <div
+            key={p.id}
+            onClick={() => onSelect(p.id)}
+            style={{
+              cursor: "pointer", borderRadius: 10, padding: "14px 22px",
+              border: isActive ? "2px solid var(--accent)" : "2px solid var(--border)",
+              background: isActive ? "var(--accent)" : "var(--panel-bg)",
+              color: isActive ? "#fff" : "var(--text)",
+              minWidth: 160, transition: "all 0.15s",
+              boxShadow: isActive ? "0 2px 8px rgba(37,99,235,0.18)" : "none",
+            }}
+          >
+            <div style={{ fontSize: 24, marginBottom: 4 }}>{p.icon}</div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{p.label}</div>
+            <div style={{ fontSize: 11, opacity: 0.75, marginTop: 2 }}>{p.sub}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════════════════ */
 /* ── Main Drawings component ─────────────────────────────────────────────── */
 export default function Drawings() {
-  const [data,      setData]      = useState<DrawingsData | null>(null);
-  const [error,     setError]     = useState<string | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [subTab,    setSubTab]    = useState<"upcoming" | "status">("upcoming");
-  const [refreshTick, setRefreshTick] = useState(0);
+  const [project,    setProject]    = useState<ProjectId>("cp-atelier");
+  const [data,       setData]       = useState<DrawingsData | null>(null);
+  const [error,      setError]      = useState<string | null>(null);
+  const [loading,    setLoading]    = useState(true);
+  const [subTab,     setSubTab]     = useState<"upcoming" | "status">("upcoming");
+  const [refreshTick,setRefreshTick]= useState(0);
 
+  // Fetch CP Atelier data whenever it's the active project
   useEffect(() => {
+    if (project !== "cp-atelier") return;
     setLoading(true);
     fetch(`/api/drawings?t=${Date.now()}`, { cache: "no-store" })
       .then(r => r.json())
       .then(d => { setData(d); setError(null); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [refreshTick]);
-
-  if (error) return <div className="error">⚠️ {error}</div>;
+  }, [project, refreshTick]);
 
   return (
     <div>
-      {/* Header bar */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
-        <SubTabBtn active={subTab === "upcoming"} icon="📅" label="Upcoming"
-          onClick={() => setSubTab("upcoming")} />
-        <SubTabBtn active={subTab === "status"}   icon="📊" label="Status"
-          onClick={() => setSubTab("status")} />
-        <div style={{ flex: 1 }} />
-        <a
-          href="https://docs.google.com/spreadsheets/d/1MJMschYqRO8p4tLtNrO-N7ctXTmU1UcEHpzW4BnjATE/edit"
-          target="_blank" rel="noreferrer"
-          style={{ fontSize: 12, color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}>
-          📄 Open Tracker →
-        </a>
-        <button onClick={() => setRefreshTick(n => n + 1)} disabled={loading}
-          style={{ padding: "7px 14px", borderRadius: 8, fontWeight: 600, fontSize: 13,
-            border: "2px solid var(--border)", background: "var(--sidebar-bg)",
-            color: "var(--text)", cursor: loading ? "default" : "pointer",
-            opacity: loading ? 0.6 : 1 }}>
-          {loading ? "⟳ Loading…" : "🔄 Refresh"}
-        </button>
-      </div>
+      {/* Project cards */}
+      <ProjectCards active={project} onSelect={p => { setProject(p); setSubTab("upcoming"); }} />
 
-      {loading && <div className="loading">Loading drawings tracker…</div>}
-
-      {!loading && data && (
+      {/* ── CP Atelier ─────────────────────────────────────────────────── */}
+      {project === "cp-atelier" && (
         <>
-          {subTab === "upcoming" && <UpcomingView upcoming={data.upcoming} />}
-          {subTab === "status"   && <StatusView tracker={data.tracker} summary={data.summary} />}
+          {/* Sub-tab bar */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
+            <SubTabBtn active={subTab === "upcoming"} icon="📅" label="Upcoming"
+              onClick={() => setSubTab("upcoming")} />
+            <SubTabBtn active={subTab === "status"}   icon="📊" label="Status"
+              onClick={() => setSubTab("status")} />
+            <div style={{ flex: 1 }} />
+            <a
+              href="https://docs.google.com/spreadsheets/d/1MJMschYqRO8p4tLtNrO-N7ctXTmU1UcEHpzW4BnjATE/edit"
+              target="_blank" rel="noreferrer"
+              style={{ fontSize: 12, color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}>
+              📄 Open Tracker →
+            </a>
+            <button onClick={() => setRefreshTick(n => n + 1)} disabled={loading}
+              style={{ padding: "7px 14px", borderRadius: 8, fontWeight: 600, fontSize: 13,
+                border: "2px solid var(--border)", background: "var(--sidebar-bg)",
+                color: "var(--text)", cursor: loading ? "default" : "pointer",
+                opacity: loading ? 0.6 : 1 }}>
+              {loading ? "⟳ Loading…" : "🔄 Refresh"}
+            </button>
+          </div>
+
+          {error   && <div className="error">⚠️ {error}</div>}
+          {loading && <div className="loading">Loading CP Atelier drawings tracker…</div>}
+          {!loading && data && (
+            <>
+              {subTab === "upcoming" && <UpcomingView upcoming={data.upcoming} />}
+              {subTab === "status"   && <StatusView tracker={data.tracker} summary={data.summary} />}
+            </>
+          )}
         </>
+      )}
+
+      {/* ── HGP (coming soon) ──────────────────────────────────────────── */}
+      {project === "hgp" && (
+        <div className="panel" style={{ textAlign: "center", padding: "60px 24px" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🏘️</div>
+          <h3 style={{ marginBottom: 8 }}>HGP Drawings Tracker</h3>
+          <p style={{ color: "var(--muted)", fontSize: 14, maxWidth: 400, margin: "0 auto" }}>
+            HGP drawing tracker coming soon. Share the Google Sheet URL to connect it here.
+          </p>
+        </div>
       )}
     </div>
   );
