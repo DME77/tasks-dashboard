@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import KPIs from "./KPIs";
 import Charts from "./Charts";
 import TaskTable from "./TaskTable";
-import DrillDown from "./DrillDown";
 import Billing from "./Billing";
 import Manpower from "./Manpower";
 import type { Task, ProjectNode, TowerNode, AreaNode, ActiveFilter } from "./types";
@@ -14,10 +13,10 @@ const PROJECT_NAME = "Homeland Global Park";
 
 const TABS = [
   { id: "overview",   label: "Overview",          icon: "📊" },
-  { id: "tasks",      label: "Tasks",              icon: "✅" },
-  { id: "hierarchy",  label: "Hierarchy",          icon: "🌳" },
-  { id: "billing",    label: "Billing",            icon: "💰" },
-  { id: "manpower",   label: "Daily Manpower",     icon: "👷" },
+  { id: "tasks",      label: "Tasks",             icon: "✅" },
+  { id: "drawings",   label: "Drawings",          icon: "📐" },
+  { id: "billing",    label: "Billing",           icon: "💰" },
+  { id: "manpower",   label: "Daily Manpower",    icon: "👷" },
 ] as const;
 type TabId = typeof TABS[number]["id"];
 
@@ -432,11 +431,14 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* ── HIERARCHY tab ─────────────────────────────────────────────── */}
-            {activeTab === "hierarchy" && (
-              <div className="panel">
-                <h3>🌳 Project Hierarchy</h3>
-                <DrillDown projects={projects || []} tasks={filteredTasks} />
+            {/* ── DRAWINGS tab ──────────────────────────────────────────────── */}
+            {activeTab === "drawings" && (
+              <div className="panel" style={{ textAlign: "center", padding: "60px 24px" }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>📐</div>
+                <h3 style={{ marginBottom: 8 }}>Drawings</h3>
+                <p style={{ color: "var(--muted)", fontSize: 14 }}>
+                  Drawings section coming soon. Upload and manage project drawings here.
+                </p>
               </div>
             )}
 
