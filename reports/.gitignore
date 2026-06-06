@@ -1,0 +1,4 @@
+# Generated each run — keep the generator + assets, ignore outputs
+report_data.json
+dwall_report.png
+*.pdf

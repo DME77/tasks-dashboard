@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 const SHEET_ID = "1MJMschYqRO8p4tLtNrO-N7ctXTmU1UcEHpzW4BnjATE";
 
 type CellValue = string | number | null;
-type Cell = { v: CellValue; link: string | null };
+type Cell = { v: CellValue; f: string | null; link: string | null };
 
 async function fetchGViz(tabName: string): Promise<Cell[][] | null> {
   const url =
@@ -19,14 +19,37 @@ async function fetchGViz(tabName: string): Promise<Cell[][] | null> {
     if (!match) return null;
     const json = JSON.parse(match[1]);
     if (json.status !== "ok") return null;
-    // Capture both cell value and hyperlink (stored in cell.p.linkToUrl by GViz)
+    // Capture cell value, formatted value, and hyperlink
     return (json.table.rows as any[]).map((row: any) =>
       ((row.c as any[]) || []).map((cell: any) => ({
         v:    cell?.v ?? null,
+        f:    cell?.f ?? null,
         link: cell?.p?.linkToUrl ?? null,
       }))
     );
   } catch { return null; }
+}
+
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+/** Convert GViz "Date(2026,5,4)" → "04-Jun-26". Falls back to formatted value, then raw string. */
+function formatDate(cell: Cell | undefined): string {
+  if (!cell) return "";
+  const v = cell.v;
+  // GViz date cells have v = "Date(year,month,day)" with month 0-indexed
+  if (typeof v === "string") {
+    const m = v.match(/^Date\((\d+),(\d+),(\d+)\)$/);
+    if (m) {
+      const day = parseInt(m[3]);
+      const mon = MONTHS_SHORT[parseInt(m[2])] ?? "?";
+      const yr  = parseInt(m[1]) % 100;
+      return `${String(day).padStart(2,"0")}-${mon}-${String(yr).padStart(2,"0")}`;
+    }
+    return v.trim();
+  }
+  // Use formatted value if GViz provided one
+  if (cell.f) return cell.f.trim();
+  return "";
 }
 
 function val(cell: Cell | undefined): CellValue { return cell?.v ?? null; }
@@ -42,24 +65,50 @@ export interface UpcomingDrawing {
   srNo: number;
   name: string;
   location: string;
-  date: string;        // raw "04-Jun-26"
+  date: string;        // formatted "04-Jun-26"
+  status: string;      // from sheet "Status" column
   comments: string;
 }
 
 function parseUpcoming(rows: Cell[][]): UpcomingDrawing[] {
+  if (!rows.length) return [];
+
+  // Detect header row by looking for a cell containing "drawing" or "name"
+  const headerIdx = rows.findIndex(row =>
+    row.some(c => /drawing|dwg|name/i.test(str(c)))
+  );
+
+  // Default column indices (fallback if no header found)
+  let srCol = 0, nameCol = 1, locCol = 2, dateCol = 3, statusCol = 4, commentsCol = 5;
+
+  if (headerIdx >= 0) {
+    rows[headerIdx].forEach((cell, i) => {
+      const h = str(cell).toLowerCase().trim();
+      if (/^(sr[\s.]?no|s\.?no|#|no\.)/.test(h))   srCol = i;
+      else if (/drawing|dwg|name/i.test(h))          nameCol = i;
+      else if (/location|area|zone/i.test(h))        locCol = i;
+      else if (/date|expected/i.test(h))             dateCol = i;
+      else if (/^status/i.test(h))                   statusCol = i;
+      else if (/comment|remark/i.test(h))            commentsCol = i;
+    });
+  }
+
   const items: UpcomingDrawing[] = [];
-  for (const row of rows) {
+  const dataRows = rows.slice(headerIdx >= 0 ? headerIdx + 1 : 0);
+
+  for (const row of dataRows) {
     if (!row || row.length < 2) continue;
-    const v0   = val(row[0]);
-    const srNo = typeof v0 === "number" ? v0 : parseFloat(str(row[0]));
+    const v0   = val(row[srCol]);
+    const srNo = typeof v0 === "number" ? v0 : parseFloat(str(row[srCol]));
     if (isNaN(srNo)) continue;
-    const name = str(row[1]);
+    const name = str(row[nameCol]);
     if (!name) continue;
     items.push({
       srNo, name,
-      location: str(row[2]),
-      date:     str(row[3]),
-      comments: str(row[4]),
+      location: str(row[locCol]),
+      date:     formatDate(row[dateCol]),
+      status:   str(row[statusCol]),
+      comments: str(row[commentsCol]),
     });
   }
   return items;
