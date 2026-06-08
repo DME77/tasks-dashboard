@@ -32,11 +32,12 @@ const TOWER_ICONS = ["🏗️", "🏢", "🏬", "🏛️", "🏰", "⚡", "🔩"
 const AREA_ICONS  = ["🗂️", "📐", "🔧", "🪟", "💡", "🚪", "🛗", "🪜"];
 
 const FILTER_LABELS: Record<NonNullable<ActiveFilter>, string> = {
-  completed: "Completed Tasks",
-  pending:   "Pending Tasks",
-  overdue:   "Overdue Tasks",
-  week:      "Completed This Week",
-  hold:      "On Hold Tasks",
+  completed:   "Completed Tasks",
+  pending:     "Pending Tasks",
+  overdue:     "Overdue Tasks",
+  week:        "Completed This Week",
+  hold:        "On Hold Tasks",
+  on_schedule: "On Schedule Tasks",
 };
 
 /* ── Helpers ────────────────────────────────────────────────────────────────── */
@@ -188,6 +189,13 @@ export default function Dashboard() {
       case "hold":      return filteredTasks.filter(
         // Hold = not completed AND sub-area is inactive
         (t) => !t.completed && t.SubArea?.subAreaStatus === "inactive"
+      );
+      case "on_schedule": return filteredTasks.filter(
+        // On Schedule = not completed, not on hold, not overdue, AND has at least one date
+        (t) => !t.completed &&
+          t.SubArea?.subAreaStatus !== "inactive" &&
+          !(t.endDate && new Date(t.endDate).getTime() < midnight) &&
+          (!!t.endDate || !!t.startDate)
       );
       case "week":      return filteredTasks.filter(
         (t) => t.completed && t.completedAt &&

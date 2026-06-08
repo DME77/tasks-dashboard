@@ -453,6 +453,7 @@ a { color: var(--accent); }
 .badge.amber { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(217,119,6,0.2); }
 .badge.red   { background: var(--red-bg);   color: var(--red);   border: 1px solid rgba(220,38,38,0.2); }
 .badge.gray  { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+.badge.blue  { background: rgba(59,130,246,0.12); color: var(--accent); border: 1px solid rgba(59,130,246,0.2); }
 
 /* ── Task filters bar ─────────────────────────────────────────────────────── */
 .filters {

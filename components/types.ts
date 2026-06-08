@@ -30,7 +30,7 @@ export type Task = {
   User?: { userId: string; firstName: string; lastName: string } | null;
 };
 
-export type ActiveFilter = "completed" | "pending" | "overdue" | "week" | "hold" | null;
+export type ActiveFilter = "completed" | "pending" | "overdue" | "week" | "hold" | "on_schedule" | null;
 
 export type SubAreaNode = { subAreaId: string; subAreaName: string; subAreaStatus: string };
 export type AreaNode = { areaId: string; areaName: string; areaStatus: string; SubArea: SubAreaNode[] };

@@ -14,6 +14,9 @@ function isOverdue(t: Task) {
 function isOnHold(t: Task) {
   return !t.completed && t.SubArea?.subAreaStatus === "inactive";
 }
+function isOnSchedule(t: Task) {
+  return !t.completed && !isOnHold(t) && !isOverdue(t) && (!!t.endDate || !!t.startDate);
+}
 
 interface KpiItem {
   label: string;
@@ -33,11 +36,13 @@ export default function KPIs({
   selected: ActiveFilter;
   onSelect: (f: ActiveFilter) => void;
 }) {
-  const total     = tasks.length;
-  const completed = tasks.filter((t) => t.completed).length;
-  const hold      = tasks.filter(isOnHold).length;
-  const overdue   = tasks.filter(isOverdue).length;
-  const pending   = total - completed - overdue - hold;
+  const total      = tasks.length;
+  const completed  = tasks.filter((t) => t.completed).length;
+  const hold       = tasks.filter(isOnHold).length;
+  const overdue    = tasks.filter(isOverdue).length;
+  const onSchedule = tasks.filter(isOnSchedule).length;
+  // Pending = no dates, not completed, not on hold, not overdue
+  const pending    = total - completed - overdue - hold - onSchedule;
   const pct       = total ? Math.round((completed / total) * 100) : 0;
 
   const now          = Date.now();
@@ -65,9 +70,17 @@ export default function KPIs({
       filter: "completed",
     },
     {
+      label: "On Schedule",
+      value: onSchedule,
+      delta: "Dates planned",
+      icon: "🗓️",
+      colorClass: "kpi-blue",
+      filter: "on_schedule",
+    },
+    {
       label: "Pending",
       value: pending,
-      delta: "In progress",
+      delta: "No dates set",
       icon: "🔄",
       colorClass: "kpi-gray",
       filter: "pending",
