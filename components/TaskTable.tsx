@@ -23,17 +23,15 @@ function mgrOf(t: Task) {
   if (!t.User) return "";
   return `${t.User.firstName || ""} ${t.User.lastName || ""}`.trim();
 }
-function statusOf(t: Task): "completed" | "overdue" | "on_schedule" | "pending" | "hold" {
+function statusOf(t: Task): "completed" | "overdue" | "pending" | "hold" {
   if (t.completed) return "completed";
   if (t.SubArea?.subAreaStatus === "inactive") return "hold";
   if (t.endDate) {
     const d = new Date();
     const midnight = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
     if (new Date(t.endDate).getTime() < midnight) return "overdue";
-    return "on_schedule"; // has end date, not overdue
   }
-  if (t.startDate) return "on_schedule"; // has start date only
-  return "pending"; // no dates at all
+  return "pending";
 }
 function fmtDate(s: string | null | undefined) {
   if (!s) return "—";
@@ -45,7 +43,7 @@ export default function TaskTable({ tasks }: { tasks: Task[] }) {
   const [proj, setProj] = useState("");
   const [tower, setTower] = useState("");
   const [dept, setDept] = useState("");
-  const [status, setStatus] = useState<"" | "completed" | "pending" | "overdue" | "hold" | "on_schedule">("");
+  const [status, setStatus] = useState<"" | "completed" | "pending" | "overdue" | "hold">("");
   const [sortKey, setSortKey] = useState<SortKey>("endDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -130,7 +128,6 @@ export default function TaskTable({ tasks }: { tasks: Task[] }) {
         <select value={status} onChange={(e) => setStatus(e.target.value as any)}>
           <option value="">All statuses</option>
           <option value="completed">Completed</option>
-          <option value="on_schedule">On Schedule</option>
           <option value="pending">Pending</option>
           <option value="overdue">Overdue</option>
           <option value="hold">On Hold</option>
@@ -171,11 +168,10 @@ export default function TaskTable({ tasks }: { tasks: Task[] }) {
                   <td>{deptOf(t) || "—"}</td>
                   <td>{mgrOf(t) || "—"}</td>
                   <td>
-                    {s === "completed"   && <span className="badge green">Done</span>}
-                    {s === "on_schedule" && <span className="badge blue">On Schedule</span>}
-                    {s === "pending"     && <span className="badge gray">Pending</span>}
-                    {s === "overdue"     && <span className="badge red">Overdue</span>}
-                    {s === "hold"        && <span className="badge amber">On Hold</span>}
+                    {s === "completed" && <span className="badge green">Done</span>}
+                    {s === "pending"   && <span className="badge gray">Pending</span>}
+                    {s === "overdue"   && <span className="badge red">Overdue</span>}
+                    {s === "hold"      && <span className="badge amber">On Hold</span>}
                   </td>
                   <td>{fmtDate(t.endDate)}</td>
                   <td>{fmtDate(t.completedAt)}</td>
