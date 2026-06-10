@@ -7,12 +7,24 @@ import Billing from "./Billing";
 import Manpower from "./Manpower";
 import Drawings from "./Drawings";
 import DWallDrawing, { type DWallData } from "./DWallDrawing";
+import PCCDrawing from "./PCCDrawing";
+import BasementDrawing from "./BasementDrawing";
 import type { Task, ProjectNode, TowerNode, AreaNode, ActiveFilter } from "./types";
 
 /** True when a tower/area name refers to the diaphragm (D) wall, e.g. "D -Wall Work". */
 function isDWallName(name?: string | null): boolean {
   if (!name) return false;
   return name.replace(/[\s\-]/g, "").toLowerCase().includes("dwall");
+}
+/** True when a tower/area name refers to PCC work. */
+function isPCCName(name?: string | null): boolean {
+  if (!name) return false;
+  return /\bpcc\b/i.test(name);
+}
+/** True when a tower/area name refers to basement work. */
+function isBasementName(name?: string | null): boolean {
+  if (!name) return false;
+  return /basement/i.test(name);
 }
 
 /* ── Constants ──────────────────────────────────────────────────────────────── */
@@ -216,9 +228,11 @@ export default function Dashboard() {
   const allTotal     = projectTasks?.length ?? 0;
   const allCompleted = projectTasks?.filter((t) => t.completed).length ?? 0;
 
-  // "D -Wall Work" area selected? (DWG button only shows then)
+  // Named-area checks — drive inline drawing panels in Overview
   const selectedAreaName = areas.find((a) => a.areaId === selectedArea)?.areaName;
-  const dwallAreaSelected = isDWallName(selectedAreaName);
+  const dwallAreaSelected    = isDWallName(selectedAreaName);
+  const pccAreaSelected      = isPCCName(selectedAreaName);
+  const basementAreaSelected = isBasementName(selectedAreaName);
 
   // Fetch live D-Wall panel status the first time the D-Wall area is opened
   useEffect(() => {
@@ -448,6 +462,12 @@ export default function Dashboard() {
                 {dwallAreaSelected && (
                   <DWallDrawing inline data={dwallData} loading={dwallLoading} />
                 )}
+
+                {/* ── PCC drawing — shown inline when PCC area is selected ── */}
+                {pccAreaSelected && <PCCDrawing />}
+
+                {/* ── Basement drawing — shown inline when Basement area is selected ── */}
+                {basementAreaSelected && <BasementDrawing />}
 
                 <Charts tasks={filteredTasks} theme={theme} />
               </>
