@@ -10,6 +10,7 @@ import DWallDrawing, { type DWallData } from "./DWallDrawing";
 import PCCDrawing from "./PCCDrawing";
 import BasementDrawing from "./BasementDrawing";
 import ExcavationDrawing from "./ExcavationDrawing";
+import SalesOfficeDrawing from "./SalesOfficeDrawing";
 import type { Task, ProjectNode, TowerNode, AreaNode, ActiveFilter } from "./types";
 
 /** True when a tower/area name refers to the diaphragm (D) wall, e.g. "D -Wall Work". */
@@ -31,6 +32,11 @@ function isBasementName(name?: string | null): boolean {
 function isExcavationName(name?: string | null): boolean {
   if (!name) return false;
   return /excavat/i.test(name);
+}
+/** True when a tower/area name refers to the sales office. */
+function isSalesOfficeName(name?: string | null): boolean {
+  if (!name) return false;
+  return /sales/i.test(name);
 }
 
 /* ── Constants ──────────────────────────────────────────────────────────────── */
@@ -240,6 +246,7 @@ export default function Dashboard() {
   const pccAreaSelected      = isPCCName(selectedAreaName);
   const basementAreaSelected = isBasementName(selectedAreaName);
   const excavationAreaSelected = isExcavationName(selectedAreaName);
+  const salesOfficeAreaSelected = isSalesOfficeName(selectedAreaName);
 
   // Fetch live D-Wall panel status the first time the D-Wall area is opened
   useEffect(() => {
@@ -478,6 +485,9 @@ export default function Dashboard() {
 
                 {/* ── Excavation drawing — shown inline when Excavation area is selected ── */}
                 {excavationAreaSelected && <ExcavationDrawing />}
+
+                {/* ── Sales Office drawing — shown inline when Sales Office area is selected ── */}
+                {salesOfficeAreaSelected && <SalesOfficeDrawing />}
 
                 <Charts tasks={filteredTasks} theme={theme} />
               </>
