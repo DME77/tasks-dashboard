@@ -11,6 +11,7 @@ import PCCDrawing from "./PCCDrawing";
 import BasementDrawing from "./BasementDrawing";
 import ExcavationDrawing from "./ExcavationDrawing";
 import SalesOfficeDrawing from "./SalesOfficeDrawing";
+import RaftSequenceDrawing from "./RaftSequenceDrawing";
 import type { Task, ProjectNode, TowerNode, AreaNode, ActiveFilter } from "./types";
 
 /** True when a tower/area name refers to the diaphragm (D) wall, e.g. "D -Wall Work". */
@@ -37,6 +38,16 @@ function isExcavationName(name?: string | null): boolean {
 function isSalesOfficeName(name?: string | null): boolean {
   if (!name) return false;
   return /sales/i.test(name);
+}
+/** True when a tower name refers to the CP-Atelier tower. */
+function isAtelierTower(name?: string | null): boolean {
+  if (!name) return false;
+  return /atelier/i.test(name);
+}
+/** True when an area name refers to raft work (e.g. "Basement Raft work"). */
+function isRaftAreaName(name?: string | null): boolean {
+  if (!name) return false;
+  return /raft/i.test(name);
 }
 
 /* ── Constants ──────────────────────────────────────────────────────────────── */
@@ -242,11 +253,14 @@ export default function Dashboard() {
 
   // Named-area checks — drive inline drawing panels in Overview
   const selectedAreaName = areas.find((a) => a.areaId === selectedArea)?.areaName;
+  const selectedTowerName = towers.find((t) => t.towerId === selectedTower)?.towerName;
   const dwallAreaSelected    = isDWallName(selectedAreaName);
   const pccAreaSelected      = isPCCName(selectedAreaName);
-  const basementAreaSelected = isBasementName(selectedAreaName);
   const excavationAreaSelected = isExcavationName(selectedAreaName);
   const salesOfficeAreaSelected = isSalesOfficeName(selectedAreaName);
+  // CP-Atelier "Basement Raft work" → show the raft-sequence drawing instead of the generic basement one
+  const raftSequenceSelected = isAtelierTower(selectedTowerName) && isRaftAreaName(selectedAreaName);
+  const basementAreaSelected = isBasementName(selectedAreaName) && !raftSequenceSelected;
 
   // Fetch live D-Wall panel status the first time the D-Wall area is opened
   useEffect(() => {
@@ -482,6 +496,9 @@ export default function Dashboard() {
 
                 {/* ── Basement drawing — shown inline when Basement area is selected ── */}
                 {basementAreaSelected && <BasementDrawing />}
+
+                {/* ── Raft sequence — shown inline for CP-Atelier "Basement Raft work" area ── */}
+                {raftSequenceSelected && <RaftSequenceDrawing />}
 
                 {/* ── Excavation drawing — shown inline when Excavation area is selected ── */}
                 {excavationAreaSelected && <ExcavationDrawing />}
