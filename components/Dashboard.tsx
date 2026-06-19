@@ -6,12 +6,14 @@ import TaskTable from "./TaskTable";
 import Billing from "./Billing";
 import Manpower from "./Manpower";
 import Drawings from "./Drawings";
+import Reports from "./Reports";
 import DWallDrawing, { type DWallData } from "./DWallDrawing";
 import PCCDrawing from "./PCCDrawing";
 import BasementDrawing from "./BasementDrawing";
 import ExcavationDrawing from "./ExcavationDrawing";
 import SalesOfficeDrawing from "./SalesOfficeDrawing";
 import RaftSequenceDrawing from "./RaftSequenceDrawing";
+import ColumnSlabDrawing from "./ColumnSlabDrawing";
 import type { Task, ProjectNode, TowerNode, AreaNode, ActiveFilter } from "./types";
 
 /** True when a tower/area name refers to the diaphragm (D) wall, e.g. "D -Wall Work". */
@@ -49,6 +51,11 @@ function isRaftAreaName(name?: string | null): boolean {
   if (!name) return false;
   return /raft/i.test(name);
 }
+/** True when an area name refers to column & slab work. */
+function isColumnSlabAreaName(name?: string | null): boolean {
+  if (!name) return false;
+  return /column|slab/i.test(name);
+}
 
 /* ── Constants ──────────────────────────────────────────────────────────────── */
 const PROJECT_ID   = "cmnjvabgp0077keve33sbnh4c";
@@ -60,6 +67,7 @@ const TABS = [
   { id: "drawings",   label: "Drawings",          icon: "📐" },
   { id: "billing",    label: "Billing",           icon: "💰" },
   { id: "manpower",   label: "Daily Manpower",    icon: "👷" },
+  { id: "reports",    label: "Reports",           icon: "📄" },
 ] as const;
 type TabId = typeof TABS[number]["id"];
 
@@ -260,6 +268,7 @@ export default function Dashboard() {
   const salesOfficeAreaSelected = isSalesOfficeName(selectedAreaName);
   // CP-Atelier "Basement Raft work" → show the raft-sequence drawing instead of the generic basement one
   const raftSequenceSelected = isAtelierTower(selectedTowerName) && isRaftAreaName(selectedAreaName);
+  const columnSlabSelected = isAtelierTower(selectedTowerName) && isColumnSlabAreaName(selectedAreaName);
   const basementAreaSelected = isBasementName(selectedAreaName) && !raftSequenceSelected;
 
   // Fetch live D-Wall panel status the first time the D-Wall area is opened
@@ -341,7 +350,7 @@ export default function Dashboard() {
         {filteredTasks && (
           <>
             {/* ── Tower / Area category cards — hidden on Billing tab ─── */}
-            {activeTab !== "billing" && activeTab !== "manpower" && activeTab !== "drawings" && <><section className="category-section">
+            {activeTab !== "billing" && activeTab !== "manpower" && activeTab !== "drawings" && activeTab !== "reports" && <><section className="category-section">
               <div className="section-header">
                 <span className="section-title">🏗️ All Towers</span>
                 <span className="live-chip">LIVE</span>
@@ -500,6 +509,9 @@ export default function Dashboard() {
                 {/* ── Raft sequence — shown inline for CP-Atelier "Basement Raft work" area ── */}
                 {raftSequenceSelected && <RaftSequenceDrawing />}
 
+                {/* ── B2 slab pour plan — shown inline for CP-Atelier "Column and Slab work" area ── */}
+                {columnSlabSelected && <ColumnSlabDrawing />}
+
                 {/* ── Excavation drawing — shown inline when Excavation area is selected ── */}
                 {excavationAreaSelected && <ExcavationDrawing />}
 
@@ -531,6 +543,11 @@ export default function Dashboard() {
             {/* ── MANPOWER tab ──────────────────────────────────────────────── */}
             {activeTab === "manpower" && (
               <Manpower theme={theme} />
+            )}
+
+            {/* ── REPORTS tab ───────────────────────────────────────────────── */}
+            {activeTab === "reports" && (
+              <Reports />
             )}
           </>
         )}
