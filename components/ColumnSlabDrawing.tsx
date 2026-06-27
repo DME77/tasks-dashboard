@@ -9,11 +9,12 @@ const zoomBtn: React.CSSProperties = {
   fontSize: 12, fontWeight: 600, minWidth: 34,
 };
 
-type PourState = "completed" | "overdue" | "upcoming";
+type PourState = "completed" | "overdue" | "upcoming" | "hold";
 const COLORS: Record<PourState, [number, number, number]> = {
   completed: [22, 150, 60],   // green — all tasks complete
   overdue: [214, 40, 40],     // red — a deadline has passed
   upcoming: [37, 99, 235],    // blue — deadline upcoming
+  hold: [106, 90, 205],       // purple — sub-area on hold (inactive)
 };
 
 export default function ColumnSlabDrawing() {
@@ -106,6 +107,9 @@ export default function ColumnSlabDrawing() {
           </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
             <span style={{ width: 11, height: 11, borderRadius: 3, background: "rgb(37,99,235)", display: "inline-block" }} /> Upcoming
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <span style={{ width: 11, height: 11, borderRadius: 3, background: "rgb(106,90,205)", display: "inline-block" }} /> Hold
           </span>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
