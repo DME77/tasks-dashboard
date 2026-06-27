@@ -14,7 +14,7 @@ const SELECT =
     "completedAt",
     "endDate",
     "taskName",
-    "SubArea!inner(subAreaName,subAreaStatus,Area!inner(areaName,Tower!inner(towerName,Project!inner(projectId))))",
+    "SubArea!inner(subAreaName,Area!inner(areaName,Tower!inner(towerName,Project!inner(projectId))))",
   ].join(",");
 
 /**
@@ -33,8 +33,8 @@ export async function GET() {
     );
 
     const status: Record<string, boolean> = {};
-    // state: completed (green) | overdue (red) | upcoming (blue) | hold (purple, sub-area inactive/paused)
-    const state: Record<string, "completed" | "overdue" | "upcoming" | "hold"> = {};
+    // state: "completed" (green) | "overdue" (red, deadline passed) | "upcoming" (blue, deadline ahead)
+    const state: Record<string, "completed" | "overdue" | "upcoming"> = {};
     const detail: Record<string, { completed: boolean; completedAt: string | null; endDate: string | null; task: string }> = {};
     let done = 0;
 
@@ -55,8 +55,6 @@ export async function GET() {
       if (completed) {
         state[name] = "completed";
         done++;
-      } else if (r.SubArea?.subAreaStatus && r.SubArea.subAreaStatus !== "active") {
-        state[name] = "hold";
       } else {
         const due = r.endDate ? new Date(r.endDate) : null;
         state[name] = due && due < today ? "overdue" : "upcoming";

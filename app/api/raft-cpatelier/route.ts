@@ -14,10 +14,10 @@ const SELECT =
     "completedAt",
     "endDate",
     "taskName",
-    "SubArea!inner(subAreaName,subAreaStatus,Area!inner(areaName,Tower!inner(towerName,Project!inner(projectId))))",
+    "SubArea!inner(subAreaName,Area!inner(areaName,Tower!inner(towerName,Project!inner(projectId))))",
   ].join(",");
 
-/** Live state of each CP-Atelier raft pour: completed | overdue | upcoming | hold. */
+/** Live state of each CP-Atelier raft pour: completed | overdue | upcoming. */
 export async function GET() {
   try {
     const rows: any[] = await pgGet(
@@ -28,7 +28,7 @@ export async function GET() {
         `&limit=500`
     );
 
-    const state: Record<string, "completed" | "overdue" | "upcoming" | "hold"> = {};
+    const state: Record<string, "completed" | "overdue" | "upcoming"> = {};
     const detail: Record<string, { completed: boolean; completedAt: string | null; endDate: string | null }> = {};
     let done = 0;
 
@@ -43,8 +43,6 @@ export async function GET() {
       if (completed) {
         state[name] = "completed";
         done++;
-      } else if (r.SubArea?.subAreaStatus && r.SubArea.subAreaStatus !== "active") {
-        state[name] = "hold";
       } else {
         const due = r.endDate ? new Date(r.endDate) : null;
         state[name] = due && due < today ? "overdue" : "upcoming";
