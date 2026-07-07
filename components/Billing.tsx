@@ -258,8 +258,8 @@ function CategoryTable({
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* ── DLR All (master overview) ──────────────────────────────────────────── */
 /* ═══════════════════════════════════════════════════════════════════════════ */
-function DLRAll({ daily, monthly, summary, theme }: {
-  daily: DailyBilling[]; monthly: DailyBilling | null; summary: BillingSummary; theme: "dark" | "light";
+function DLRAll({ daily, monthly, summary, theme, monthLabel }: {
+  daily: DailyBilling[]; monthly: DailyBilling | null; summary: BillingSummary; theme: "dark" | "light"; monthLabel: string;
 }) {
   const isDark    = theme === "dark";
   const gridColor = isDark ? "#25305a" : "#ccd4ee";
@@ -307,7 +307,7 @@ function DLRAll({ daily, monthly, summary, theme }: {
         <div className="panel" style={{ marginBottom: 16 }}>
           <h3>📊 Monthly Summary — Category Wise (Main Sheet)</h3>
           <p style={{ fontSize: 12, color: "var(--muted)", marginTop: -4, marginBottom: 12 }}>
-            Accumulated totals for May 2026 from the Main sheet tab
+            Accumulated totals for {monthLabel} from the Main sheet tab
           </p>
           <CategoryTable
             rows={monthly.rows}
@@ -372,7 +372,7 @@ function DLRAll({ daily, monthly, summary, theme }: {
 
       {/* Master register table */}
       <div className="panel">
-        <h3>📋 Master Register — May 2026 (Date-wise)</h3>
+        <h3>📋 Master Register — {monthLabel} (Date-wise)</h3>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
@@ -582,8 +582,8 @@ function DLRDay({ row }: { row: DailyBilling }) {
 /* ═══════════════════════════════════════════════════════════════════════════ */
 const ACTIVITY_COLORS = ["#6ea8ff","#4ade80","#f87171","#fbbf24","#a78bfa","#34d399","#fb923c","#38bdf8","#e879f9","#a3e635"];
 
-function DPRAll({ dpr, activityAggregate, dprSummary, theme }: {
-  dpr: DailyDPR[]; activityAggregate: ActAggrRow[]; dprSummary: DprSummary; theme: "dark" | "light";
+function DPRAll({ dpr, activityAggregate, dprSummary, theme, monthLabel }: {
+  dpr: DailyDPR[]; activityAggregate: ActAggrRow[]; dprSummary: DprSummary; theme: "dark" | "light"; monthLabel: string;
 }) {
   const isDark    = theme === "dark";
   const gridColor = isDark ? "#25305a" : "#ccd4ee";
@@ -619,7 +619,7 @@ function DPRAll({ dpr, activityAggregate, dprSummary, theme }: {
 
       {activityAggregate.length > 0 && (
         <div className="panel">
-          <h3>📋 Work Progress — Cumulative Quantities (May 2026)</h3>
+          <h3>📋 Work Progress — Cumulative Quantities ({monthLabel})</h3>
           <p style={{ fontSize: 12, color: "var(--muted)", marginTop: -4, marginBottom: 12 }}>Total quantities executed across all dates — all 14 activities shown in sequence</p>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -844,7 +844,7 @@ export default function Billing({ theme }: { theme: "dark" | "light" }) {
             </div>
           );
         }
-        return <DLRAll daily={data.daily} monthly={data.monthly} summary={data.summary} theme={theme} />;
+        return <DLRAll daily={data.daily} monthly={data.monthly} summary={data.summary} theme={theme} monthLabel={monthDisplayLabel} />;
       })()}
 
       {/* ── DPR content ───────────────────────────────────────────────── */}
@@ -859,7 +859,7 @@ export default function Billing({ theme }: { theme: "dark" | "light" }) {
             </div>
           );
         }
-        return <DPRAll dpr={data.dpr} activityAggregate={data.activityAggregate} dprSummary={data.dprSummary} theme={theme} />;
+        return <DPRAll dpr={data.dpr} activityAggregate={data.activityAggregate} dprSummary={data.dprSummary} theme={theme} monthLabel={monthDisplayLabel} />;
       })()}
     </div>
   );

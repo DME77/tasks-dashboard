@@ -4,7 +4,6 @@ import KPIs from "./KPIs";
 import Charts from "./Charts";
 import TaskTable from "./TaskTable";
 import Billing from "./Billing";
-import Manpower from "./Manpower";
 import Drawings from "./Drawings";
 import Reports from "./Reports";
 import DWallDrawing, { type DWallData } from "./DWallDrawing";
@@ -65,8 +64,7 @@ const TABS = [
   { id: "overview",   label: "Overview",          icon: "📊" },
   { id: "tasks",      label: "Tasks",             icon: "✅" },
   { id: "drawings",   label: "Drawings",          icon: "📐" },
-  { id: "billing",    label: "Billing",           icon: "💰" },
-  { id: "manpower",   label: "Daily Manpower",    icon: "👷" },
+  { id: "billing",    label: "Daily Manpower Reports", icon: "👷" },
   { id: "reports",    label: "Reports",           icon: "📄" },
 ] as const;
 type TabId = typeof TABS[number]["id"];
@@ -350,7 +348,7 @@ export default function Dashboard() {
         {filteredTasks && (
           <>
             {/* ── Tower / Area category cards — hidden on Billing tab ─── */}
-            {activeTab !== "billing" && activeTab !== "manpower" && activeTab !== "drawings" && activeTab !== "reports" && <><section className="category-section">
+            {activeTab !== "billing" && activeTab !== "drawings" && activeTab !== "reports" && <><section className="category-section">
               <div className="section-header">
                 <span className="section-title">🏗️ All Towers</span>
                 <span className="live-chip">LIVE</span>
@@ -540,10 +538,7 @@ export default function Dashboard() {
               <Billing theme={theme} />
             )}
 
-            {/* ── MANPOWER tab ──────────────────────────────────────────────── */}
-            {activeTab === "manpower" && (
-              <Manpower theme={theme} />
-            )}
+
 
             {/* ── REPORTS tab ───────────────────────────────────────────────── */}
             {activeTab === "reports" && (

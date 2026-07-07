@@ -10,6 +10,12 @@ interface MonthSheets {
   dlr: string | null;   // null = not available yet
   dpr: string | null;
   tabStyle?: "short" | "long"; // "short" = "01-Jun" (default), "long" = "01-June"
+  /**
+   * "v1" (May/Jun): night cols at [16,17,18]; expense row adds to supply total.
+   * "v2" (Jul+):   night cols at [18,19,20] (Target/ShortFall inserted at 16,17);
+   *                expense-summary row is already included in supply total — skip it.
+   */
+  sheetVersion?: "v1" | "v2";
 }
 
 const MONTH_SHEETS: Record<string, MonthSheets> = {
@@ -27,6 +33,7 @@ const MONTH_SHEETS: Record<string, MonthSheets> = {
     dlr: "1md6Cw7SE7Wla_h6URUYVNk588D83zjlZ0X72dsGwaTo",       // ACC DLR July
     dpr: null,
     tabStyle: "long",                                            // tabs: 01-July, 02-July …
+    sheetVersion: "v2",                                          // Target/ShortFall cols added
   },
 };
 
@@ -260,7 +267,7 @@ export interface ManpowerCounts {
  *
  * Total expenditure = directManpowerExpense (Section 2) + supplyLabourExpense (Section 3)
  * ─────────────────────────────────────────────────────────────────────────── */
-function parseDLR(rows: CellValue[][], date: string): DailyBilling | null {
+function parseDLR(rows: CellValue[][], date: string, v2 = false): DailyBilling | null {
   const categories: CategoryBilling[] = [];
   let directDayExp = 0, directNightExp = 0;   // from DAILY MANPOWER REPORT expense row
   let totalDayLabour = 0, totalNightLabour = 0;
@@ -293,9 +300,13 @@ function parseDLR(rows: CellValue[][], date: string): DailyBilling | null {
 
     // ── Expense row immediately after TOTAL (daily sheets) ───────────────
     // All of col[0], col[1], col[2] are null/empty; col[15] = day total, col[18] = night total
+    // v2 sheets: this row is a per-category cost breakdown that equals the supply-section
+    // total — skip it to avoid double-counting.
     if (lastRowWasManpowerTotal && !c0 && !c1 && !c2 && row.length > 15) {
-      directDayExp   = toNum(row[15]);
-      directNightExp = toNum(row[18]);
+      if (!v2) {
+        directDayExp   = toNum(row[15]);
+        directNightExp = toNum(row[18]);
+      }
       lastRowWasManpowerTotal = false;
       continue;
     }
@@ -382,7 +393,7 @@ function parseDLR(rows: CellValue[][], date: string): DailyBilling | null {
 }
 
 /* ── Manpower parser — reads DAILY MANPOWER REPORT TOTAL row ────────────── */
-function parseManpowerCounts(rows: CellValue[][], date: string): ManpowerCounts | null {
+function parseManpowerCounts(rows: CellValue[][], date: string, v2 = false): ManpowerCounts | null {
   for (const row of rows) {
     if (!row || row.length < 16) continue;
     const c0 = typeof row[0] === "string" ? row[0].trim() : "";
@@ -405,9 +416,11 @@ function parseManpowerCounts(rows: CellValue[][], date: string): ManpowerCounts 
     const elecPlum = toNum(row[13]);
     const cook     = toNum(row[14]);
     const totalDay   = toNum(row[15]);
-    const nightMason = toNum(row[16]);
-    const nightHelper= toNum(row[17]);
-    const totalNight = toNum(row[18]);
+    // v1 (May/Jun): night cols at [16,17,18]
+    // v2 (Jul+):   [16]=Target manpower, [17]=ShortFall → skip; night at [18,19,20]
+    const nightMason  = v2 ? toNum(row[18]) : toNum(row[16]);
+    const nightHelper = v2 ? toNum(row[19]) : toNum(row[17]);
+    const totalNight  = v2 ? toNum(row[20]) : toNum(row[18]);
     const total      = totalDay + totalNight;
     if (total === 0) return null;
     return {
@@ -485,6 +498,7 @@ export async function GET(request: Request) {
 
   const sheets   = getSheetsForMonth(year, month); // per-month sheet IDs
   const tabStyle = sheets.tabStyle ?? "short";
+  const v2       = sheets.sheetVersion === "v2";
   const dates    = getMonthDates(year, month, tabStyle);
   const label    = monthLabel(year, month);        // e.g. "Jun-2026"
 
@@ -514,7 +528,7 @@ export async function GET(request: Request) {
   const finalBilling: DailyBilling[] = dates.map((date) => {
     const live = dlrResults.find((r) => r.date === date);
     if (live?.rows) {
-      const parsed = parseDLR(live.rows, date);
+      const parsed = parseDLR(live.rows, date, v2);
       if (parsed) return parsed;
     }
     return emptyDay(date);
@@ -529,7 +543,7 @@ export async function GET(request: Request) {
   const finalManpower: ManpowerCounts[] = dates.map((date) => {
     const live = dlrResults.find((r) => r.date === date);
     if (live?.rows) {
-      const parsed = parseManpowerCounts(live.rows, date);
+      const parsed = parseManpowerCounts(live.rows, date, v2);
       if (parsed) return parsed;
     }
     return emptyManpower(date);
@@ -545,7 +559,7 @@ export async function GET(request: Request) {
   });
 
   // Monthly summary from "Main sheet" tab
-  const monthly = mainSheetRows ? parseDLR(mainSheetRows, label) : null;
+  const monthly = mainSheetRows ? parseDLR(mainSheetRows, label, v2) : null;
 
   // DLR summary (derived from daily data)
   const activeBilling  = finalBilling.filter((d) => d.totalAmount > 0);
