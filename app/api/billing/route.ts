@@ -243,7 +243,8 @@ export interface ManpowerCounts {
   mason: number; mHelper: number; f: number; fH: number;
   cr: number; crH: number; supFor: number; weld: number;
   weldH: number; scaff: number; elecPlum: number; cook: number;
-  totalDay: number; nightMason: number; nightHelper: number; totalNight: number;
+  totalDay: number; targetDay: number; shortFall: number;
+  nightMason: number; nightHelper: number; totalNight: number;
   total: number;
 }
 
@@ -415,17 +416,20 @@ function parseManpowerCounts(rows: CellValue[][], date: string, v2 = false): Man
     const scaff    = toNum(row[12]);
     const elecPlum = toNum(row[13]);
     const cook     = toNum(row[14]);
-    const totalDay   = toNum(row[15]);
-    // v1 (May/Jun): night cols at [16,17,18]
-    // v2 (Jul+):   [16]=Target manpower, [17]=ShortFall → skip; night at [18,19,20]
+    const totalDay    = toNum(row[15]);
+    // v1 (May/Jun): night cols at [16,17,18]; no Target/ShortFall
+    // v2 (Jul+):   [16]=Target manpower, [17]=ShortFall; night at [18,19,20]
+    const targetDay   = v2 ? toNum(row[16]) : 0;
+    const shortFall   = v2 ? toNum(row[17]) : 0;
     const nightMason  = v2 ? toNum(row[18]) : toNum(row[16]);
     const nightHelper = v2 ? toNum(row[19]) : toNum(row[17]);
     const totalNight  = v2 ? toNum(row[20]) : toNum(row[18]);
-    const total      = totalDay + totalNight;
+    const total       = totalDay + totalNight;
     if (total === 0) return null;
     return {
       date, mason, mHelper, f, fH, cr, crH, supFor, weld, weldH,
-      scaff, elecPlum, cook, totalDay, nightMason, nightHelper, totalNight, total,
+      scaff, elecPlum, cook, totalDay, targetDay, shortFall,
+      nightMason, nightHelper, totalNight, total,
     };
   }
   return null;
@@ -538,7 +542,8 @@ export async function GET(request: Request) {
   const emptyManpower = (date: string): ManpowerCounts => ({
     date, mason:0, mHelper:0, f:0, fH:0, cr:0, crH:0,
     supFor:0, weld:0, weldH:0, scaff:0, elecPlum:0, cook:0,
-    totalDay:0, nightMason:0, nightHelper:0, totalNight:0, total:0,
+    totalDay:0, targetDay:0, shortFall:0,
+    nightMason:0, nightHelper:0, totalNight:0, total:0,
   });
   const finalManpower: ManpowerCounts[] = dates.map((date) => {
     const live = dlrResults.find((r) => r.date === date);

@@ -18,18 +18,23 @@ export async function GET() {
   const rows = await fetchGViz("1md6Cw7SE7Wla_h6URUYVNk588D83zjlZ0X72dsGwaTo", "01-July");
   if (!rows) return NextResponse.json({ error: "fetch failed" });
 
-  const totalRows = rows
-    .map((row, i) => {
-      const c0 = typeof row[0] === "string" ? row[0].trim() : "";
-      const c1 = typeof row[1] === "string" ? row[1].trim() : "";
-      const c2 = typeof row[2] === "string" ? row[2].trim().toLowerCase() : "";
-      const isTotal = c2 === "nos" && (c1.toUpperCase() === "TOTAL" || c0.toUpperCase() === "TOTAL");
-      return { rowIndex: i, isTotal, row };
-    })
-    .filter((r) => r.isTotal);
+  // Return first 20 rows so we can see B3:B9 (0-indexed rows 2-8)
+  const first20 = rows.slice(0, 20).map((row, i) => ({
+    spreadsheetRow: i + 1,
+    colA: row[0],
+    colB: row[1],
+    colC: row[2],
+    colD: row[3],
+    fullRow: row.slice(0, 8),
+  }));
 
-  // Also return all rows with any numeric data near col 15-25
-  const allRows = rows.map((row, i) => ({ i, vals: row }));
+  // B3:B9 specifically (0-indexed rows 2-8)
+  const b3b9 = rows.slice(2, 9).map((row, i) => ({
+    spreadsheetRow: i + 3,
+    colB: row[1],
+    colC: row[2],
+    fullRow: row.slice(0, 8),
+  }));
 
-  return NextResponse.json({ totalRows, allRows: allRows.slice(0, 30) });
+  return NextResponse.json({ b3b9, first20 });
 }
