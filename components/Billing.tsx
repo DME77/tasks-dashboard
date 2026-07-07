@@ -41,6 +41,12 @@ interface BillingSummary {
   totalDailyExp: number; totalSupplyExp: number; totalAll: number;
   activeDays: number; peakDay: DailyBilling | null; avgDaily: number;
 }
+interface WorkRow {
+  description: string;
+  subTotal: number;
+  targetDay: number;
+  shortFall: number;
+}
 interface ManpowerCounts {
   date: string;
   mason: number; mHelper: number; f: number; fH: number;
@@ -49,6 +55,7 @@ interface ManpowerCounts {
   totalDay: number; targetDay: number; shortFall: number;
   nightMason: number; nightHelper: number; totalNight: number;
   total: number;
+  workRows: WorkRow[];
 }
 
 interface BillingData {
@@ -469,64 +476,78 @@ function DLRDay({ row, mp }: { row: DailyBilling; mp: ManpowerCounts | null }) {
         ))}
       </div>
 
-      {/* ── Regular Labour — Day + Night combined ──────────────────────── */}
-      {(() => {
-        const targetDay = mp?.targetDay ?? 0;
-        const shortFall = mp?.shortFall ?? 0;
-        const behindCats = REG_DAY_CATS.filter(({ key }) => !mp || (mp[key] as number) === 0);
-        return (
-          <div className="panel" style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-              <SectionBadge color="#6ea8ff" label="☀️🌙 REGULAR LABOUR (Day + Night)" />
-              {behindCats.length > 0 && (
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#f87171", background: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.3)", borderRadius: 6, padding: "3px 10px" }}>
-                  ⚠️ {behindCats.length} categor{behindCats.length === 1 ? "y" : "ies"} with no workers: {behindCats.map(c => c.label).join(", ")}
-                </span>
-              )}
-            </div>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: "var(--sidebar-bg)" }}>
-                    <th style={{ padding: "7px 12px", textAlign: "left",  borderBottom: "2px solid var(--border)", color: "var(--muted)", fontWeight: 600, fontSize: 11 }}>Category</th>
-                    <th style={{ padding: "7px 12px", textAlign: "right", borderBottom: "2px solid var(--border)", color: "#6ea8ff",      fontWeight: 600, fontSize: 11 }}>Day</th>
-                    <th style={{ padding: "7px 12px", textAlign: "right", borderBottom: "2px solid var(--border)", color: "#4ade80",      fontWeight: 600, fontSize: 11 }}>Target</th>
-                    <th style={{ padding: "7px 12px", textAlign: "right", borderBottom: "2px solid var(--border)", color: "#f87171",      fontWeight: 600, fontSize: 11 }}>Short Fall</th>
-                    <th style={{ padding: "7px 12px", textAlign: "right", borderBottom: "2px solid var(--border)", color: "#a78bfa",      fontWeight: 600, fontSize: 11 }}>Night</th>
+      {/* ── Actual vs Required Labour ──────────────────────────────────── */}
+      {mp && mp.workRows.length > 0 && (
+        <div className="panel" style={{ marginBottom: 16 }}>
+          <SectionBadge color="#34d399" label="📊 ACTUAL VS REQUIRED LABOUR" />
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "var(--sidebar-bg)" }}>
+                  <th style={{ padding: "7px 12px", textAlign: "left",  borderBottom: "2px solid var(--border)", color: "var(--muted)", fontWeight: 600, fontSize: 11 }}>Work Description</th>
+                  <th style={{ padding: "7px 12px", textAlign: "right", borderBottom: "2px solid var(--border)", color: "#6ea8ff",      fontWeight: 600, fontSize: 11 }}>Sub Total</th>
+                  <th style={{ padding: "7px 12px", textAlign: "right", borderBottom: "2px solid var(--border)", color: "#4ade80",      fontWeight: 600, fontSize: 11 }}>Target Manpower</th>
+                  <th style={{ padding: "7px 12px", textAlign: "right", borderBottom: "2px solid var(--border)", color: "#f87171",      fontWeight: 600, fontSize: 11 }}>Short Fall</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mp.workRows.map(({ description, subTotal, targetDay, shortFall: sf }, i) => (
+                  <tr key={description} style={{ background: i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
+                    <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)", fontWeight: 500 }}>{description}</td>
+                    <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#6ea8ff", fontWeight: 600 }}>{subTotal || "—"}</td>
+                    <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#4ade80", fontWeight: 600 }}>{targetDay || "—"}</td>
+                    <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: sf > 0 ? "#f87171" : "var(--muted)", fontWeight: sf > 0 ? 700 : 400 }}>{sf || "—"}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {REG_DAY_CATS.map(({ label, key }, i) => {
-                    const dayVal   = mp ? (mp[key] as number) : 0;
-                    const nightVal = label === "Mason" ? nightMASCAR : label === "M.Helper" ? nightMHelper : 0;
-                    const behind   = dayVal === 0;
-                    return (
-                      <tr key={label} style={{ background: behind ? "rgba(248,113,113,0.06)" : i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
-                        <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)", fontWeight: 500, color: behind ? "#f87171" : "inherit" }}>
-                          {behind ? "⚠️" : catIcon(label)} {label}
-                        </td>
-                        <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: behind ? "#f87171" : "#6ea8ff", fontWeight: 600 }}>{dayVal || "—"}</td>
-                        <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "var(--muted)" }}>—</td>
-                        <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "var(--muted)" }}>—</td>
-                        <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#a78bfa", fontWeight: 600 }}>{nightVal || "—"}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr style={{ background: "var(--sidebar-bg)", fontWeight: 700, borderTop: "2px solid var(--border)" }}>
-                    <td style={{ padding: "8px 12px" }}>∑ TOTAL</td>
-                    <td style={{ padding: "8px 12px", textAlign: "right", color: "#6ea8ff" }}>{regDayTotal   || "—"}</td>
-                    <td style={{ padding: "8px 12px", textAlign: "right", color: "#4ade80" }}>{targetDay || "—"}</td>
-                    <td style={{ padding: "8px 12px", textAlign: "right", color: "#f87171" }}>{shortFall || "—"}</td>
-                    <td style={{ padding: "8px 12px", textAlign: "right", color: "#a78bfa" }}>{regNightTotal || "—"}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ background: "var(--sidebar-bg)", fontWeight: 700, borderTop: "2px solid var(--border)" }}>
+                  <td style={{ padding: "8px 12px" }}>∑ TOTAL</td>
+                  <td style={{ padding: "8px 12px", textAlign: "right", color: "#6ea8ff" }}>{mp.totalDay || "—"}</td>
+                  <td style={{ padding: "8px 12px", textAlign: "right", color: "#4ade80" }}>{mp.targetDay || "—"}</td>
+                  <td style={{ padding: "8px 12px", textAlign: "right", color: "#f87171" }}>{mp.shortFall || "—"}</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
-        );
-      })()}
+        </div>
+      )}
+
+      {/* ── Regular Labour — Day + Night combined ──────────────────────── */}
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <SectionBadge color="#6ea8ff" label="☀️🌙 REGULAR LABOUR (Day + Night)" />
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "var(--sidebar-bg)" }}>
+                <th style={{ padding: "7px 12px", textAlign: "left",  borderBottom: "2px solid var(--border)", color: "var(--muted)", fontWeight: 600, fontSize: 11 }}>Category</th>
+                <th style={{ padding: "7px 12px", textAlign: "right", borderBottom: "2px solid var(--border)", color: "#6ea8ff",      fontWeight: 600, fontSize: 11 }}>Day</th>
+                <th style={{ padding: "7px 12px", textAlign: "right", borderBottom: "2px solid var(--border)", color: "#a78bfa",      fontWeight: 600, fontSize: 11 }}>Night</th>
+              </tr>
+            </thead>
+            <tbody>
+              {REG_DAY_CATS.map(({ label, key }, i) => {
+                const dayVal   = mp ? (mp[key] as number) : 0;
+                const nightVal = label === "Mason" ? nightMASCAR : label === "M.Helper" ? nightMHelper : 0;
+                return (
+                  <tr key={label} style={{ background: i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
+                    <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)", fontWeight: 500 }}>{catIcon(label)} {label}</td>
+                    <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#6ea8ff", fontWeight: 600 }}>{dayVal   || "—"}</td>
+                    <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#a78bfa", fontWeight: 600 }}>{nightVal || "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr style={{ background: "var(--sidebar-bg)", fontWeight: 700, borderTop: "2px solid var(--border)" }}>
+                <td style={{ padding: "8px 12px" }}>∑ TOTAL</td>
+                <td style={{ padding: "8px 12px", textAlign: "right", color: "#6ea8ff" }}>{regDayTotal   || "—"}</td>
+                <td style={{ padding: "8px 12px", textAlign: "right", color: "#a78bfa" }}>{regNightTotal || "—"}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
 
       {/* ── Supply Labour section ───────────────────────────────────────── */}
       {row.rows.length > 0 && (

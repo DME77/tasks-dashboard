@@ -238,6 +238,13 @@ function parseQuantity(val: CellValue): number {
 }
 
 /* ── Manpower counts type ────────────────────────────────────────────────── */
+export interface WorkRow {
+  description: string;
+  subTotal: number;
+  targetDay: number;
+  shortFall: number;
+}
+
 export interface ManpowerCounts {
   date: string;
   mason: number; mHelper: number; f: number; fH: number;
@@ -246,6 +253,7 @@ export interface ManpowerCounts {
   totalDay: number; targetDay: number; shortFall: number;
   nightMason: number; nightHelper: number; totalNight: number;
   total: number;
+  workRows: WorkRow[];
 }
 
 /* ── DLR parser — new ACC sheet format ──────────────────────────────────────
@@ -393,6 +401,26 @@ function parseDLR(rows: CellValue[][], date: string, v2 = false): DailyBilling |
   };
 }
 
+/* ── Work description row parser — reads each row in DAILY MANPOWER REPORT ── */
+function parseWorkRows(rows: CellValue[][], v2 = false): WorkRow[] {
+  const result: WorkRow[] = [];
+  for (const row of rows) {
+    if (!row || row.length < 16) continue;
+    const c0 = typeof row[0] === "string" ? row[0].trim() : "";
+    const c1 = typeof row[1] === "string" ? row[1].trim() : "";
+    const c2 = typeof row[2] === "string" ? row[2].trim().toLowerCase() : "";
+    // Only work description rows: col[2]="Nos", col[1] has a description, NOT the TOTAL row
+    if (c2 !== "nos") continue;
+    if (c1.toUpperCase() === "TOTAL" || c0.toUpperCase() === "TOTAL") break;
+    if (!c1) continue;
+    const subTotal  = toNum(row[15]);
+    const targetDay = v2 ? toNum(row[16]) : 0;
+    const shortFall = v2 ? toNum(row[17]) : 0;
+    result.push({ description: c1, subTotal, targetDay, shortFall });
+  }
+  return result;
+}
+
 /* ── Manpower parser — reads DAILY MANPOWER REPORT TOTAL row ────────────── */
 function parseManpowerCounts(rows: CellValue[][], date: string, v2 = false): ManpowerCounts | null {
   for (const row of rows) {
@@ -430,6 +458,7 @@ function parseManpowerCounts(rows: CellValue[][], date: string, v2 = false): Man
       date, mason, mHelper, f, fH, cr, crH, supFor, weld, weldH,
       scaff, elecPlum, cook, totalDay, targetDay, shortFall,
       nightMason, nightHelper, totalNight, total,
+      workRows: parseWorkRows(rows, v2),
     };
   }
   return null;
@@ -544,6 +573,7 @@ export async function GET(request: Request) {
     supFor:0, weld:0, weldH:0, scaff:0, elecPlum:0, cook:0,
     totalDay:0, targetDay:0, shortFall:0,
     nightMason:0, nightHelper:0, totalNight:0, total:0,
+    workRows:[],
   });
   const finalManpower: ManpowerCounts[] = dates.map((date) => {
     const live = dlrResults.find((r) => r.date === date);
