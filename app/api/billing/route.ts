@@ -23,6 +23,11 @@ const MONTH_SHEETS: Record<string, MonthSheets> = {
     dpr: "1qP-l-KHQ394BExBGkiiTkVWOXOh4G_I63SNyPmDlhXU",
     tabStyle: "long",                                            // tabs: 01-June, 02-June …
   },
+  "2026-6": {                                                    // July 2026
+    dlr: "1md6Cw7SE7Wla_h6URUYVNk588D83zjlZ0X72dsGwaTo",       // ACC DLR July
+    dpr: null,
+    tabStyle: "long",                                            // tabs: 01-July, 02-July …
+  },
 };
 
 /** Fallback — reuse May sheets so the page never breaks for unknown months */
