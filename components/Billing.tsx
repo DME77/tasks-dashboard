@@ -491,21 +491,24 @@ function DLRDay({ row, mp }: { row: DailyBilling; mp: ManpowerCounts | null }) {
                 </tr>
               </thead>
               <tbody>
-                {mp.workRows.map(({ description, subTotal, targetDay, shortFall: sf }, i) => (
-                  <tr key={description} style={{ background: i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
-                    <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)", fontWeight: 500 }}>{description}</td>
-                    <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#6ea8ff", fontWeight: 600 }}>{subTotal || "—"}</td>
-                    <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#4ade80", fontWeight: 600 }}>{targetDay || "—"}</td>
-                    <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: sf > 0 ? "#f87171" : "var(--muted)", fontWeight: sf > 0 ? 700 : 400 }}>{sf || "—"}</td>
-                  </tr>
-                ))}
+                {mp.workRows.map(({ description, subTotal, targetDay, shortFall: sf }, i) => {
+                  const flagged = sf < 0 || sf === 0;
+                  return (
+                    <tr key={description} style={{ background: flagged ? "rgba(248,113,113,0.08)" : i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
+                      <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)", fontWeight: 500, color: flagged ? "#f87171" : "inherit" }}>{description}</td>
+                      <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#6ea8ff", fontWeight: 600 }}>{subTotal || "—"}</td>
+                      <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#4ade80", fontWeight: 600 }}>{targetDay || "—"}</td>
+                      <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: sf !== 0 ? "#f87171" : "var(--muted)", fontWeight: sf !== 0 ? 700 : 400 }}>{sf !== 0 ? sf : "—"}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr style={{ background: "var(--sidebar-bg)", fontWeight: 700, borderTop: "2px solid var(--border)" }}>
                   <td style={{ padding: "8px 12px" }}>∑ TOTAL</td>
                   <td style={{ padding: "8px 12px", textAlign: "right", color: "#6ea8ff" }}>{mp.totalDay || "—"}</td>
                   <td style={{ padding: "8px 12px", textAlign: "right", color: "#4ade80" }}>{mp.targetDay || "—"}</td>
-                  <td style={{ padding: "8px 12px", textAlign: "right", color: "#f87171" }}>{mp.shortFall || "—"}</td>
+                  <td style={{ padding: "8px 12px", textAlign: "right", color: mp.shortFall !== 0 ? "#f87171" : "var(--muted)" }}>{mp.shortFall !== 0 ? mp.shortFall : "—"}</td>
                 </tr>
               </tfoot>
             </table>
