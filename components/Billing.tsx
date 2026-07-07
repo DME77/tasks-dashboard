@@ -269,36 +269,54 @@ function CategoryTable({
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* ── DLR All (master overview) ──────────────────────────────────────────── */
 /* ═══════════════════════════════════════════════════════════════════════════ */
-function DLRAll({ daily, summary, theme, monthLabel }: {
-  daily: DailyBilling[]; monthly: DailyBilling | null; summary: BillingSummary; theme: "dark" | "light"; monthLabel: string;
+function DLRAll({ daily, dailyManpower, summary, theme, monthLabel }: {
+  daily: DailyBilling[]; monthly: DailyBilling | null;
+  dailyManpower: ManpowerCounts[];
+  summary: BillingSummary; theme: "dark" | "light"; monthLabel: string;
 }) {
   const isDark    = theme === "dark";
   const gridColor = isDark ? "#25305a" : "#ccd4ee";
   const axisColor = isDark ? "#9aa6cc" : "#5a6890";
 
-  const totalRegDay   = daily.reduce((s, d) => s + d.totalDayLabour,   0);
-  const totalRegNight = daily.reduce((s, d) => s + d.totalNightLabour, 0);
-  const totalSupDay   = daily.reduce((s, d) => s + d.totalDaySupply,   0);
-  const totalSupNight = daily.reduce((s, d) => s + d.totalNightSupply, 0);
-  const totalWorkers  = daily.reduce((s, d) => s + d.totalLabour,      0);
+  // Build a quick lookup: date → ManpowerCounts
+  const mpMap = new Map<string, ManpowerCounts>();
+  dailyManpower.forEach((m) => mpMap.set(m.date, m));
+
+  // Per-day merged rows: use ManpowerCounts for Reg, DailyBilling for Sup
+  const merged = daily.map((d) => {
+    const mp = mpMap.get(d.date);
+    return {
+      date:     d.date,
+      regDay:   mp?.totalDay   ?? d.totalDayLabour,
+      regNight: mp?.totalNight ?? d.totalNightLabour,
+      supDay:   d.totalDayLabour,    // supply billing day nos
+      supNight: d.totalNightLabour,  // supply billing night nos
+    };
+  });
+
+  const totalRegDay   = merged.reduce((s, d) => s + d.regDay,   0);
+  const totalRegNight = merged.reduce((s, d) => s + d.regNight, 0);
+  const totalSupDay   = merged.reduce((s, d) => s + d.supDay,   0);
+  const totalSupNight = merged.reduce((s, d) => s + d.supNight, 0);
+  const totalWorkers  = totalRegDay + totalRegNight + totalSupDay + totalSupNight;
 
   const kpis = [
-    { label: "Active Work Days",   value: String(summary.activeDays), icon: "📅", color: "kpi-green", sub: "Days with workers" },
-    { label: "Regular Day",        value: String(totalRegDay),        icon: "☀️", color: "kpi-blue",  sub: "Total reg. day workers" },
-    { label: "Regular Night",      value: String(totalRegNight),      icon: "🌙", color: "kpi-blue",  sub: "Total reg. night workers" },
-    { label: "Supply Day",         value: String(totalSupDay),        icon: "🔆", color: "kpi-amber", sub: "Total supply day workers" },
-    { label: "Supply Night",       value: String(totalSupNight),      icon: "🌒", color: "kpi-amber", sub: "Total supply night workers" },
-    { label: "Total Manpower",     value: String(totalWorkers),       icon: "👷", color: "kpi-red",   sub: "All workers combined" },
+    { label: "Active Work Days", value: String(summary.activeDays), icon: "📅", color: "kpi-green", sub: "Days with workers"       },
+    { label: "Regular Day",      value: String(totalRegDay),        icon: "☀️", color: "kpi-blue",  sub: "Total reg. day workers"  },
+    { label: "Regular Night",    value: String(totalRegNight),      icon: "🌙", color: "kpi-blue",  sub: "Total reg. night workers" },
+    { label: "Supply Day",       value: String(totalSupDay),        icon: "🔆", color: "kpi-amber", sub: "Supply billing day nos"   },
+    { label: "Supply Night",     value: String(totalSupNight),      icon: "🌒", color: "kpi-amber", sub: "Supply billing night nos" },
+    { label: "Total Manpower",   value: String(totalWorkers),       icon: "👷", color: "kpi-red",   sub: "Reg + Supply combined"   },
   ];
 
-  const workerData = daily
-    .filter((d) => d.totalDayLabour > 0 || d.totalNightLabour > 0 || d.totalDaySupply > 0 || d.totalNightSupply > 0)
+  const workerData = merged
+    .filter((d) => d.regDay > 0 || d.regNight > 0 || d.supDay > 0 || d.supNight > 0)
     .map((d) => ({
-      date: d.date,
-      "Reg Day":   d.totalDayLabour,
-      "Reg Night": d.totalNightLabour,
-      "Sup Day":   d.totalDaySupply,
-      "Sup Night": d.totalNightSupply,
+      date:        d.date,
+      "Reg Day":   d.regDay,
+      "Reg Night": d.regNight,
+      "Sup Day":   d.supDay,
+      "Sup Night": d.supNight,
     }));
 
   return (
@@ -337,7 +355,7 @@ function DLRAll({ daily, summary, theme, monthLabel }: {
         </div>
       )}
 
-      {/* Master register table — manpower only */}
+      {/* Master register table */}
       <div className="panel">
         <h3>📋 Daily Manpower Register — {monthLabel}</h3>
         <div style={{ overflowX: "auto" }}>
@@ -345,28 +363,31 @@ function DLRAll({ daily, summary, theme, monthLabel }: {
             <thead>
               <tr style={{ background: "var(--sidebar-bg)" }}>
                 {[
-                  { h: "Date",          color: undefined,  align: "left"  as const },
-                  { h: "Reg Day",       color: "#6ea8ff",  align: "right" as const },
-                  { h: "Reg Night",     color: "#a78bfa",  align: "right" as const },
-                  { h: "Sup Day",       color: "#fbbf24",  align: "right" as const },
-                  { h: "Sup Night",     color: "#fb923c",  align: "right" as const },
-                  { h: "Total",         color: undefined,  align: "right" as const },
+                  { h: "Date",      color: undefined,  align: "left"  as const },
+                  { h: "Reg Day",   color: "#6ea8ff",  align: "right" as const },
+                  { h: "Reg Night", color: "#a78bfa",  align: "right" as const },
+                  { h: "Sup Day",   color: "#fbbf24",  align: "right" as const },
+                  { h: "Sup Night", color: "#fb923c",  align: "right" as const },
+                  { h: "Total",     color: undefined,  align: "right" as const },
                 ].map(({ h, color, align }) => (
                   <th key={h} style={{ padding: "7px 10px", textAlign: align, borderBottom: "2px solid var(--border)", color: color ?? "var(--muted)", fontWeight: 600, fontSize: 11, whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {daily.map((row, i) => (
-                <tr key={row.date} style={{ background: i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
-                  <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>{row.date}{summary.peakDay?.date === row.date ? " ⬆️" : ""}</td>
-                  <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#6ea8ff" }}>{row.totalDayLabour   || "—"}</td>
-                  <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#a78bfa" }}>{row.totalNightLabour || "—"}</td>
-                  <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#fbbf24" }}>{row.totalDaySupply   || "—"}</td>
-                  <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#fb923c" }}>{row.totalNightSupply || "—"}</td>
-                  <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 700   }}>{row.totalLabour     || "—"}</td>
-                </tr>
-              ))}
+              {merged.map((row, i) => {
+                const rowTotal = row.regDay + row.regNight + row.supDay + row.supNight;
+                return (
+                  <tr key={row.date} style={{ background: i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
+                    <td style={{ padding: "6px 10px", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>{row.date}</td>
+                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#6ea8ff" }}>{row.regDay   || "—"}</td>
+                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#a78bfa" }}>{row.regNight || "—"}</td>
+                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#fbbf24" }}>{row.supDay   || "—"}</td>
+                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#fb923c" }}>{row.supNight || "—"}</td>
+                    <td style={{ padding: "6px 10px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 700  }}>{rowTotal     || "—"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot>
               <tr style={{ background: "var(--sidebar-bg)", fontWeight: 700 }}>
@@ -447,24 +468,30 @@ function DLRDay({ row, mp }: { row: DailyBilling; mp: ManpowerCounts | null }) {
         ))}
       </div>
 
-      {/* ── Regular Day Labour ─────────────────────────────────────────── */}
+      {/* ── Regular Labour — Day + Night combined ──────────────────────── */}
       <div className="panel" style={{ marginBottom: 16 }}>
-        <SectionBadge color="#6ea8ff" label="☀️ REGULAR DAY LABOUR" />
+        <SectionBadge color="#6ea8ff" label="☀️🌙 REGULAR LABOUR (Day + Night)" />
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--sidebar-bg)" }}>
                 <th style={{ padding: "7px 12px", textAlign: "left",  borderBottom: "2px solid var(--border)", color: "var(--muted)", fontWeight: 600, fontSize: 11 }}>Category</th>
-                <th style={{ padding: "7px 12px", textAlign: "right", borderBottom: "2px solid var(--border)", color: "#6ea8ff",      fontWeight: 600, fontSize: 11 }}>Workers</th>
+                <th style={{ padding: "7px 12px", textAlign: "right", borderBottom: "2px solid var(--border)", color: "#6ea8ff",      fontWeight: 600, fontSize: 11 }}>Day</th>
+                <th style={{ padding: "7px 12px", textAlign: "right", borderBottom: "2px solid var(--border)", color: "#a78bfa",      fontWeight: 600, fontSize: 11 }}>Night</th>
               </tr>
             </thead>
             <tbody>
               {REG_DAY_CATS.map(({ label, key }, i) => {
-                const v = mp ? (mp[key] as number) : 0;
+                const dayVal   = mp ? (mp[key] as number) : 0;
+                // Night: Mason row → nightMASCAR; M.Helper row → nightMHelper
+                const nightVal = label === "Mason" ? nightMASCAR
+                               : label === "M.Helper" ? nightMHelper
+                               : 0;
                 return (
                   <tr key={label} style={{ background: i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
                     <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)", fontWeight: 500 }}>{catIcon(label)} {label}</td>
-                    <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#6ea8ff", fontWeight: 600 }}>{v || "—"}</td>
+                    <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#6ea8ff", fontWeight: 600 }}>{dayVal   || "—"}</td>
+                    <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#a78bfa", fontWeight: 600 }}>{nightVal || "—"}</td>
                   </tr>
                 );
               })}
@@ -472,35 +499,7 @@ function DLRDay({ row, mp }: { row: DailyBilling; mp: ManpowerCounts | null }) {
             <tfoot>
               <tr style={{ background: "var(--sidebar-bg)", fontWeight: 700, borderTop: "2px solid var(--border)" }}>
                 <td style={{ padding: "8px 12px" }}>∑ TOTAL</td>
-                <td style={{ padding: "8px 12px", textAlign: "right", color: "#6ea8ff" }}>{regDayTotal || "—"}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-
-      {/* ── Regular Night Labour ───────────────────────────────────────── */}
-      <div className="panel" style={{ marginBottom: 16 }}>
-        <SectionBadge color="#a78bfa" label="🌙 REGULAR NIGHT LABOUR" />
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: "var(--sidebar-bg)" }}>
-                <th style={{ padding: "7px 12px", textAlign: "left",  borderBottom: "2px solid var(--border)", color: "var(--muted)", fontWeight: 600, fontSize: 11 }}>Category</th>
-                <th style={{ padding: "7px 12px", textAlign: "right", borderBottom: "2px solid var(--border)", color: "#a78bfa",      fontWeight: 600, fontSize: 11 }}>Workers</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[{ label: "MAS/CAR", v: nightMASCAR }, { label: "M.Helper", v: nightMHelper }].map(({ label, v }, i) => (
-                <tr key={label} style={{ background: i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
-                  <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)", fontWeight: 500 }}>{catIcon(label)} {label}</td>
-                  <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#a78bfa", fontWeight: 600 }}>{v || "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr style={{ background: "var(--sidebar-bg)", fontWeight: 700, borderTop: "2px solid var(--border)" }}>
-                <td style={{ padding: "8px 12px" }}>∑ TOTAL</td>
+                <td style={{ padding: "8px 12px", textAlign: "right", color: "#6ea8ff" }}>{regDayTotal   || "—"}</td>
                 <td style={{ padding: "8px 12px", textAlign: "right", color: "#a78bfa" }}>{regNightTotal || "—"}</td>
               </tr>
             </tfoot>
@@ -841,7 +840,7 @@ export default function Billing({ theme }: { theme: "dark" | "light" }) {
             </div>
           );
         }
-        return <DLRAll daily={data.daily} monthly={data.monthly} summary={data.summary} theme={theme} monthLabel={monthDisplayLabel} />;
+        return <DLRAll daily={data.daily} monthly={data.monthly} dailyManpower={data.dailyManpower ?? []} summary={data.summary} theme={theme} monthLabel={monthDisplayLabel} />;
       })()}
 
       </>} {/* end ACC content */}
