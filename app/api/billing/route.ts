@@ -18,7 +18,7 @@ interface MonthSheets {
   sheetVersion?: "v1" | "v2";
 }
 
-const MONTH_SHEETS: Record<string, MonthSheets> = {
+const ACC_SHEETS: Record<string, MonthSheets> = {
   "2026-4": {                                                    // May 2026
     dlr: "1PnmXsPlNtO_VTdgvutGyYJOTxQ5DYsIl6ufJuRfiVJM",       // ACC DLR May
     dpr: "1yzPpZR6HonSLlFk4c046AR5cgYtmD0UGhbO280FzoTk",
@@ -37,14 +37,24 @@ const MONTH_SHEETS: Record<string, MonthSheets> = {
   },
 };
 
-/** Fallback — reuse May sheets so the page never breaks for unknown months */
+const HGP_SHEETS: Record<string, MonthSheets> = {
+  "2026-6": {                                                    // July 2026
+    dlr: "1HMhOuyKtRh64ndlPuP9SfRXB8UEi6KXYDAyvWP7MNgo",       // HGP DLR July
+    dpr: null,
+    tabStyle: "long",                                            // tabs: 01-July, 02-July …
+    sheetVersion: "v2",
+  },
+};
+
+/** Fallback — reuse May ACC sheets so the page never breaks for unknown months */
 const FALLBACK_SHEETS: MonthSheets = {
   dlr: "1PnmXsPlNtO_VTdgvutGyYJOTxQ5DYsIl6ufJuRfiVJM",
   dpr: "1yzPpZR6HonSLlFk4c046AR5cgYtmD0UGhbO280FzoTk",
 };
 
-function getSheetsForMonth(year: number, month: number): MonthSheets {
-  return MONTH_SHEETS[`${year}-${month}`] ?? FALLBACK_SHEETS;
+function getSheetsForMonth(year: number, month: number, contractor: string): MonthSheets {
+  const map = contractor === "Ethimo" ? HGP_SHEETS : ACC_SHEETS;
+  return map[`${year}-${month}`] ?? FALLBACK_SHEETS;
 }
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
@@ -525,11 +535,12 @@ function aggregateActivities(dprData: DailyDPR[]) {
 export async function GET(request: Request) {
   // Parse ?month=0-11&year=YYYY from query string (defaults to current month)
   const { searchParams } = new URL(request.url);
-  const now     = new Date();
-  const year    = parseInt(searchParams.get("year")  ?? String(now.getFullYear()), 10);
-  const month   = parseInt(searchParams.get("month") ?? String(now.getMonth()),    10); // 0-indexed
+  const now        = new Date();
+  const year       = parseInt(searchParams.get("year")       ?? String(now.getFullYear()), 10);
+  const month      = parseInt(searchParams.get("month")      ?? String(now.getMonth()),    10); // 0-indexed
+  const contractor = searchParams.get("contractor") ?? "ACC";
 
-  const sheets   = getSheetsForMonth(year, month); // per-month sheet IDs
+  const sheets   = getSheetsForMonth(year, month, contractor); // per-month sheet IDs
   const tabStyle = sheets.tabStyle ?? "short";
   const v2       = sheets.sheetVersion === "v2";
   const dates    = getMonthDates(year, month, tabStyle);

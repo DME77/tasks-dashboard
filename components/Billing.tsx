@@ -71,7 +71,7 @@ interface BillingData {
   dprSummary: DprSummary;
 }
 type SubTab = "dlr" | "dpr";
-type Contractor = "ACC" | "HGP";
+type Contractor = "ACC" | "Ethimo";
 
 /* ── Month helpers ───────────────────────────────────────────────────────── */
 const MONTH_NAMES_FULL = ["January","February","March","April","May","June",
@@ -399,7 +399,7 @@ function DLRAll({ daily, dailyManpower, summary, theme, monthLabel, contractor }
   return (
     <>
       {/* KPI cards — ACC only */}
-      {contractor !== "HGP" && (
+      {contractor !== "Ethimo" && (
         <div className="kpis" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
           {kpis.map((k) => (
             <div key={k.label} className={`kpi ${k.color}`}>
@@ -413,7 +413,7 @@ function DLRAll({ daily, dailyManpower, summary, theme, monthLabel, contractor }
       )}
 
       {/* Worker count trend — ACC only */}
-      {contractor !== "HGP" && workerData.length > 0 && (
+      {contractor !== "Ethimo" && workerData.length > 0 && (
         <div className="panel" style={{ marginBottom: 16 }}>
           <h3>Worker Count Trend — {monthLabel}</h3>
           <div style={{ width: "100%", height: 240 }}>
@@ -435,7 +435,7 @@ function DLRAll({ daily, dailyManpower, summary, theme, monthLabel, contractor }
       )}
 
       {/* Master register table — ACC only */}
-      {contractor !== "HGP" && <div className="panel">
+      {contractor !== "Ethimo" && <div className="panel">
         <h3>📋 Daily Manpower Register — {monthLabel}</h3>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
@@ -855,7 +855,7 @@ export default function Billing({ theme }: { theme: "dark" | "light" }) {
         <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.08em", color: "var(--muted)", textTransform: "uppercase" }}>Contractor</span>
       </div>
       <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-        {(["ACC", "HGP"] as Contractor[]).map((c) => (
+        {(["ACC", "Ethimo"] as Contractor[]).map((c) => (
           <button key={c} onClick={() => setContractor(c)} style={{
             padding: "9px 28px", borderRadius: 10, cursor: "pointer",
             fontWeight: 700, fontSize: 14, letterSpacing: "0.04em",
@@ -952,7 +952,7 @@ export default function Billing({ theme }: { theme: "dark" | "light" }) {
       )}
 
       {/* ── HGP: Required vs Available table (date-aware) ────────────── */}
-      {contractor === "HGP" && <HGPManpowerTable date={selectedDate} />}
+      {contractor === "Ethimo" && <HGPManpowerTable date={selectedDate} />}
 
       {/* ── ACC DLR content ───────────────────────────────────────────── */}
       {contractor === "ACC" && !refreshing && data && (() => {
