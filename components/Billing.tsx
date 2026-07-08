@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useMemo, type ReactNode, type CSSProperties } from "react";
+import { useEffect, useState, useMemo, useRef, type ReactNode, type CSSProperties } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Legend, CartesianGrid,
@@ -277,10 +277,79 @@ function CategoryTable({
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* ── DLR All (master overview) ──────────────────────────────────────────── */
 /* ═══════════════════════════════════════════════════════════════════════════ */
-function DLRAll({ daily, dailyManpower, summary, theme, monthLabel }: {
+/* ── HGP Manpower Table ──────────────────────────────────────────────────── */
+interface HGPManpowerRow { category: string; requiredManpower: number; availableManpower: number; shortfall: number; }
+
+function HGPManpowerTable({ date }: { date?: string | null }) {
+  const [rows,    setRows]    = useState<HGPManpowerRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    const url = date ? `/api/hgp-manpower?date=${encodeURIComponent(date)}` : "/api/hgp-manpower";
+    fetch(url, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => { setRows(d.rows ?? []); setError(null); })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [date]);
+
+  if (loading) return <div className="panel" style={{ padding: 32, textAlign: "center", color: "var(--muted)" }}>Loading HGP manpower data…</div>;
+  if (error)   return <div className="panel" style={{ padding: 32, textAlign: "center", color: "#f87171" }}>⚠️ {error}</div>;
+  if (!rows.length) return <div className="panel" style={{ padding: 32, textAlign: "center", color: "var(--muted)" }}>No manpower data found in HGP sheet.</div>;
+
+  return (
+    <div className="panel" style={{ marginBottom: 16 }}>
+      <h3 style={{ marginBottom: 12 }}>📊 Required vs Available Manpower{date ? ` — ${date}` : " (Month Overview)"}</h3>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: "var(--sidebar-bg)" }}>
+              {[
+                { h: "Category",           color: "var(--muted)", align: "left"  as const },
+                { h: "Required Manpower",  color: "#4ade80",      align: "right" as const },
+                { h: "Available Manpower", color: "#6ea8ff",      align: "right" as const },
+                { h: "Shortfall",          color: "#f87171",      align: "right" as const },
+              ].map(({ h, color, align }) => (
+                <th key={h} style={{ padding: "7px 12px", textAlign: align, borderBottom: "2px solid var(--border)", color, fontWeight: 600, fontSize: 11 }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ category, requiredManpower, availableManpower, shortfall }, i) => {
+              const flagged = shortfall !== 0;
+              return (
+                <tr key={category} style={{ background: flagged ? "rgba(248,113,113,0.07)" : i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
+                  <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)", fontWeight: 500, color: flagged ? "#f87171" : "inherit" }}>{category}</td>
+                  <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#4ade80", fontWeight: 600 }}>{requiredManpower  || "—"}</td>
+                  <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: "#6ea8ff", fontWeight: 600 }}>{availableManpower || "—"}</td>
+                  <td style={{ padding: "8px 12px", textAlign: "right", borderBottom: "1px solid var(--border)", color: flagged ? "#f87171" : "var(--muted)", fontWeight: flagged ? 700 : 400 }}>{shortfall !== 0 ? shortfall : "—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr style={{ background: "var(--sidebar-bg)", fontWeight: 700, borderTop: "2px solid var(--border)" }}>
+              <td style={{ padding: "8px 12px" }}>∑ TOTAL</td>
+              <td style={{ padding: "8px 12px", textAlign: "right", color: "#4ade80" }}>{rows.reduce((s, r) => s + r.requiredManpower,  0) || "—"}</td>
+              <td style={{ padding: "8px 12px", textAlign: "right", color: "#6ea8ff" }}>{rows.reduce((s, r) => s + r.availableManpower, 0) || "—"}</td>
+              <td style={{ padding: "8px 12px", textAlign: "right", color: "#f87171" }}>{rows.reduce((s, r) => s + r.shortfall,         0) || "—"}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ── DLR All (master overview) ──────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+function DLRAll({ daily, dailyManpower, summary, theme, monthLabel, contractor }: {
   daily: DailyBilling[]; monthly: DailyBilling | null;
   dailyManpower: ManpowerCounts[];
   summary: BillingSummary; theme: "dark" | "light"; monthLabel: string;
+  contractor: Contractor;
 }) {
   const isDark    = theme === "dark";
   const gridColor = isDark ? "#25305a" : "#ccd4ee";
@@ -329,20 +398,22 @@ function DLRAll({ daily, dailyManpower, summary, theme, monthLabel }: {
 
   return (
     <>
-      {/* KPI cards */}
-      <div className="kpis" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
-        {kpis.map((k) => (
-          <div key={k.label} className={`kpi ${k.color}`}>
-            <span className="kpi-icon">{k.icon}</span>
-            <div className="label">{k.label}</div>
-            <div className="value">{k.value}</div>
-            <div className="delta">{k.sub}</div>
-          </div>
-        ))}
-      </div>
+      {/* KPI cards — ACC only */}
+      {contractor !== "HGP" && (
+        <div className="kpis" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
+          {kpis.map((k) => (
+            <div key={k.label} className={`kpi ${k.color}`}>
+              <span className="kpi-icon">{k.icon}</span>
+              <div className="label">{k.label}</div>
+              <div className="value">{k.value}</div>
+              <div className="delta">{k.sub}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {/* Worker count trend */}
-      {workerData.length > 0 && (
+      {/* Worker count trend — ACC only */}
+      {contractor !== "HGP" && workerData.length > 0 && (
         <div className="panel" style={{ marginBottom: 16 }}>
           <h3>Worker Count Trend — {monthLabel}</h3>
           <div style={{ width: "100%", height: 240 }}>
@@ -363,8 +434,8 @@ function DLRAll({ daily, dailyManpower, summary, theme, monthLabel }: {
         </div>
       )}
 
-      {/* Master register table */}
-      <div className="panel">
+      {/* Master register table — ACC only */}
+      {contractor !== "HGP" && <div className="panel">
         <h3>📋 Daily Manpower Register — {monthLabel}</h3>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
@@ -409,7 +480,7 @@ function DLRAll({ daily, dailyManpower, summary, theme, monthLabel }: {
             </tfoot>
           </table>
         </div>
-      </div>
+      </div>}
     </>
   );
 }
@@ -721,21 +792,37 @@ export default function Billing({ theme }: { theme: "dark" | "light" }) {
   const [contractor,   setContractor]   = useState<Contractor>("ACC");
   const [data,         setData]         = useState<BillingData | null>(null);
   const [error,        setError]        = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // Default to today's date in DD-Mon format (e.g. "08-Jul")
+  const todayStr = useMemo(() => {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${day}-${MONTH_NAMES_FULL[now.getMonth()]}`;
+  }, []);
+
+  const [selectedDate, setSelectedDate] = useState<string | null>(todayStr);
   const [refreshTick,  setRefreshTick]  = useState(0);
   const [refreshing,   setRefreshing]   = useState(false);
+  const prevMonth = useRef({ year: selMonth.year, month: selMonth.month });
 
-  // Re-fetch whenever month or refreshTick changes
+  // Re-fetch whenever month, contractor, or refreshTick changes
   useEffect(() => {
     setRefreshing(true);
-    setSelectedDate(null);
-    const url = `/api/billing?month=${selMonth.month}&year=${selMonth.year}&t=${Date.now()}`;
+    // When month changes, reset to today if still in current month, else null
+    const monthChanged =
+      prevMonth.current.year !== selMonth.year || prevMonth.current.month !== selMonth.month;
+    if (monthChanged) {
+      const now = new Date();
+      const isCurrentMonth = selMonth.year === now.getFullYear() && selMonth.month === now.getMonth();
+      setSelectedDate(isCurrentMonth ? todayStr : null);
+      prevMonth.current = { year: selMonth.year, month: selMonth.month };
+    }
+    const url = `/api/billing?month=${selMonth.month}&year=${selMonth.year}&contractor=${contractor}&t=${Date.now()}`;
     fetch(url, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => { setData(d); setError(null); })
       .catch((e) => setError(e.message))
       .finally(() => setRefreshing(false));
-  }, [selMonth.month, selMonth.year, refreshTick]);
+  }, [selMonth.month, selMonth.year, contractor, refreshTick]);
 
   const activeDates = useMemo(() => data?.daily.map((d) => d.date) ?? [], [data]);
 
@@ -769,7 +856,7 @@ export default function Billing({ theme }: { theme: "dark" | "light" }) {
       </div>
       <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
         {(["ACC", "HGP"] as Contractor[]).map((c) => (
-          <button key={c} onClick={() => { setContractor(c); setSelectedDate(null); }} style={{
+          <button key={c} onClick={() => setContractor(c)} style={{
             padding: "9px 28px", borderRadius: 10, cursor: "pointer",
             fontWeight: 700, fontSize: 14, letterSpacing: "0.04em",
             border: contractor === c ? "2px solid var(--accent)" : "2px solid var(--border)",
@@ -780,17 +867,8 @@ export default function Billing({ theme }: { theme: "dark" | "light" }) {
         ))}
       </div>
 
-      {/* ── HGP placeholder ───────────────────────────────────────────── */}
-      {contractor === "HGP" && (
-        <div className="panel" style={{ textAlign: "center", padding: "60px 40px", color: "var(--muted)" }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🏗️</div>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6, color: "var(--text)" }}>HGP Manpower Data</div>
-          <div style={{ fontSize: 13 }}>Connect an HGP source sheet to start tracking HGP contractor manpower here.</div>
-        </div>
-      )}
-
-      {/* ── ACC content ───────────────────────────────────────────────── */}
-      {contractor === "ACC" && <>
+      {/* ── Contractor content (ACC + HGP) ────────────────────────────── */}
+      {<>
 
       {/* ── Top bar: month selector + refresh ────────────────────────── */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
@@ -873,8 +951,11 @@ export default function Billing({ theme }: { theme: "dark" | "light" }) {
         </>
       )}
 
-      {/* ── DLR content (shown directly) ──────────────────────────────── */}
-      {!refreshing && data && (() => {
+      {/* ── HGP: Required vs Available table (date-aware) ────────────── */}
+      {contractor === "HGP" && <HGPManpowerTable date={selectedDate} />}
+
+      {/* ── ACC DLR content ───────────────────────────────────────────── */}
+      {contractor === "ACC" && !refreshing && data && (() => {
         if (selectedDate) {
           if (dlrRow && (dlrRow.totalLabour > 0 || dlrRow.totalAmount > 0 || (mpRow && mpRow.total > 0))) return <DLRDay row={dlrRow} mp={mpRow} />;
           return (
@@ -885,10 +966,10 @@ export default function Billing({ theme }: { theme: "dark" | "light" }) {
             </div>
           );
         }
-        return <DLRAll daily={data.daily} monthly={data.monthly} dailyManpower={data.dailyManpower ?? []} summary={data.summary} theme={theme} monthLabel={monthDisplayLabel} />;
+        return <DLRAll daily={data.daily} monthly={data.monthly} dailyManpower={data.dailyManpower ?? []} summary={data.summary} theme={theme} monthLabel={monthDisplayLabel} contractor={contractor} />;
       })()}
 
-      </>} {/* end ACC content */}
+      </>} {/* end contractor content */}
     </div>
   );
 }
