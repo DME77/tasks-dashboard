@@ -14,10 +14,19 @@ const SELECT =
     "completedAt",
     "endDate",
     "taskName",
-    "SubArea!inner(subAreaId,subAreaName,subAreaStatus,Area!inner(areaName,Tower!inner(towerName,Project!inner(projectId))))",
+    "SubArea!inner(subAreaName,Area!inner(areaName,Tower!inner(towerName,Project!inner(projectId))))",
   ].join(",");
 
-/** Live state of each HGP basement raft pour: completed | overdue | upcoming. */
+type PourState = "completed" | "overdue" | "upcoming";
+
+/**
+ * A sub-area is:
+ *   "completed" — every task in it is completed
+ *   "overdue"   — at least one task incomplete with endDate in the past
+ *   "upcoming"  — has incomplete tasks, none overdue yet
+ *
+ * Sub-areas with no tasks are omitted (no colour on drawing).
+ */
 export async function GET() {
   try {
     const rows: any[] = await pgGet(
@@ -28,47 +37,43 @@ export async function GET() {
         `&limit=500`
     );
 
-    const state: Record<string, "completed" | "overdue" | "upcoming"> = {};
-    const subAreaDone = new Set<string>();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Also fetch sub-area status directly (subAreaStatus = "completed" marks the whole sub-area done)
-    const subAreas: any[] = await pgGet(
-      `/SubArea?select=subAreaId,subAreaName,subAreaStatus,Area!inner(areaName,Tower!inner(towerName,Project!inner(projectId)))` +
-        `&Area.areaName=eq.${encodeURIComponent(AREA_NAME)}` +
-        `&Area.Tower.towerName=eq.${encodeURIComponent(TOWER_NAME)}` +
-        `&Area.Tower.Project.projectId=eq.${PROJECT_ID}`
-    );
-
-    for (const sa of subAreas) {
-      const name = sa.subAreaName;
-      if (!name) continue;
-      if (sa.subAreaStatus?.toLowerCase() === "completed") {
-        subAreaDone.add(name);
-        state[name] = "completed";
-      }
-    }
-
-    // Layer in task-level completions
+    // Group tasks by sub-area name
+    const bySubArea = new Map<string, { completed: boolean; endDate: string | null }[]>();
     for (const r of rows) {
       const name = r.SubArea?.subAreaName;
       if (!name) continue;
-      if (subAreaDone.has(name)) continue; // already marked done at sub-area level
-
-      const completed = !!r.completed;
-      if (completed) {
-        state[name] = "completed";
-      } else if (!state[name]) {
-        const due = r.endDate ? new Date(r.endDate) : null;
-        state[name] = due && due < today ? "overdue" : "upcoming";
-      }
+      if (!bySubArea.has(name)) bySubArea.set(name, []);
+      bySubArea.get(name)!.push({ completed: !!r.completed, endDate: r.endDate ?? null });
     }
 
-    const doneCount = Object.values(state).filter((s) => s === "completed").length;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const state: Record<string, PourState> = {};
+    let doneCount = 0;
+
+    for (const [name, tasks] of bySubArea) {
+      if (tasks.length === 0) continue;
+
+      const allDone = tasks.every((t) => t.completed);
+      if (allDone) {
+        state[name] = "completed";
+        doneCount++;
+        continue;
+      }
+
+      // Any incomplete task overdue?
+      const hasOverdue = tasks.some((t) => {
+        if (t.completed) return false;
+        const due = t.endDate ? new Date(t.endDate) : null;
+        return due !== null && due < today;
+      });
+
+      state[name] = hasOverdue ? "overdue" : "upcoming";
+    }
 
     return NextResponse.json(
-      { state, total: Object.keys(state).length, doneCount, updatedAt: new Date().toISOString() },
+      { state, total: bySubArea.size, doneCount, updatedAt: new Date().toISOString() },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (e: any) {
