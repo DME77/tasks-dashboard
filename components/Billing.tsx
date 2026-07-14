@@ -318,7 +318,7 @@ function HGPManpowerTable({ date }: { date?: string | null }) {
           </thead>
           <tbody>
             {rows.map(({ category, requiredManpower, availableManpower, shortfall }, i) => {
-              const flagged = shortfall !== 0;
+              const flagged = shortfall < 0;
               return (
                 <tr key={category} style={{ background: flagged ? "rgba(248,113,113,0.07)" : i % 2 === 0 ? "transparent" : "var(--sidebar-bg)" }}>
                   <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)", fontWeight: 500, color: flagged ? "#f87171" : "inherit" }}>{category}</td>
