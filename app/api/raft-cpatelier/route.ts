@@ -28,29 +28,41 @@ export async function GET() {
         `&limit=500`
     );
 
+    // Group tasks by sub-area
+    const bySubArea = new Map<string, { completed: boolean; endDate: string | null }[]>();
+    for (const r of rows) {
+      const name = r.SubArea?.subAreaName;
+      if (!name) continue;
+      if (!bySubArea.has(name)) bySubArea.set(name, []);
+      bySubArea.get(name)!.push({ completed: !!r.completed, endDate: r.endDate ?? null });
+    }
+
     const state: Record<string, "completed" | "overdue" | "upcoming"> = {};
-    const detail: Record<string, { completed: boolean; completedAt: string | null; endDate: string | null }> = {};
     let done = 0;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    for (const r of rows) {
-      const name = r.SubArea?.subAreaName;
-      if (!name) continue;
-      const completed = !!r.completed;
-      detail[name] = { completed, completedAt: r.completedAt ?? null, endDate: r.endDate ?? null };
-      if (completed) {
+    for (const [name, tasks] of bySubArea) {
+      if (tasks.length === 0) continue;
+      // A pour is "completed" only when ALL its tasks are done
+      const allDone = tasks.every((t) => t.completed);
+      if (allDone) {
         state[name] = "completed";
         done++;
-      } else {
-        const due = r.endDate ? new Date(r.endDate) : null;
-        state[name] = due && due < today ? "overdue" : "upcoming";
+        continue;
       }
+      // Any incomplete task overdue?
+      const hasOverdue = tasks.some((t) => {
+        if (t.completed) return false;
+        const due = t.endDate ? new Date(t.endDate) : null;
+        return due !== null && due < today;
+      });
+      state[name] = hasOverdue ? "overdue" : "upcoming";
     }
 
     return NextResponse.json(
-      { state, detail, total: Object.keys(state).length, doneCount: done, updatedAt: new Date().toISOString() },
+      { state, total: bySubArea.size, doneCount: done, updatedAt: new Date().toISOString() },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (e: any) {

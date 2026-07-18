@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { signOut, useSession } from "next-auth/react";
 import KPIs from "./KPIs";
 import Charts from "./Charts";
 import TaskTable from "./TaskTable";
@@ -87,6 +88,7 @@ function taskPct(total: number, completed: number) {
 
 /* ── Component ──────────────────────────────────────────────────────────────── */
 export default function Dashboard() {
+  const { data: session } = useSession();
   /* state */
   const [tasks,        setTasks]        = useState<Task[] | null>(null);
   const [projects,     setProjects]     = useState<ProjectNode[] | null>(null);
@@ -316,6 +318,14 @@ export default function Dashboard() {
               style={{ opacity: refreshing ? 0.6 : 1 }}
             >
               {refreshing ? "⟳" : "🔄"}
+            </button>
+            <button
+              className="theme-btn"
+              onClick={() => signOut({ callbackUrl: "/" })}
+              title={`Sign out${session?.user?.email ? ` (${session.user.email})` : ""}`}
+              style={{ fontSize: 16 }}
+            >
+              🚪
             </button>
           </div>
         </div>
