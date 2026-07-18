@@ -13,7 +13,7 @@ echo "→ Staging all changes..."
 git add -A
 
 echo "→ Committing..."
-git commit -m "feat: Google OAuth, logout button, whitelist sheet"
+git commit -m "feat: real-time whitelist re-check, auto sign-out, unauthorized error message"
 
 echo "→ Pushing to GitHub → Vercel will auto-deploy..."
 git push
