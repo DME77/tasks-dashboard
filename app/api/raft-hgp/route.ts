@@ -21,8 +21,9 @@ type PourState = "completed" | "overdue" | "upcoming";
 
 /**
  * A sub-area is:
- *   "completed" — every task in it is completed
- *   "overdue"   — at least one task incomplete with endDate in the past
+ *   "completed" — every task in it is completed, OR all incomplete tasks have
+ *                 endDate in the past (auto-green when scheduled date passes)
+ *   "overdue"   — (unused — overdue is now auto-completed)
  *   "upcoming"  — has incomplete tasks, none overdue yet
  *
  * Sub-areas with no tasks are omitted (no colour on drawing).
@@ -62,14 +63,22 @@ export async function GET() {
         continue;
       }
 
-      // Any incomplete task overdue?
-      const hasOverdue = tasks.some((t) => {
-        if (t.completed) return false;
+      // Auto-complete: if ALL incomplete tasks have an endDate that has passed,
+      // treat the zone as completed (green) — scheduled date = completion date.
+      const incompleteTasks = tasks.filter((t) => !t.completed);
+      const allPastDue = incompleteTasks.length > 0 && incompleteTasks.every((t) => {
         const due = t.endDate ? new Date(t.endDate) : null;
         return due !== null && due < today;
       });
 
-      state[name] = hasOverdue ? "overdue" : "upcoming";
+      if (allPastDue) {
+        state[name] = "completed";
+        doneCount++;
+        continue;
+      }
+
+      // Any incomplete task overdue (but not all)? → upcoming still
+      state[name] = "upcoming";
     }
 
     return NextResponse.json(
