@@ -2,9 +2,50 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const HGP_SHEET_ID = "1HMhOuyKtRh64ndlPuP9SfRXB8UEi6KXYDAyvWP7MNgo";
-const HGP_GID        = "1406742693";
-const HGP_MASTER_TAB = "Master sheet";
+/* ── Per-month sheet config for Ethimo (HGP) Required vs Available Manpower ──
+ * Key: "MONTH_NAME" (as it appears in date tabs, e.g. "August")
+ * Add a new entry whenever a new month's sheet is created.
+ * ─────────────────────────────────────────────────────────────────────────── */
+interface MonthSheetConfig {
+  sheetId: string;
+  gid: string;         // GID of the master/summary tab
+  masterTab: string;   // Tab name of the master/summary tab
+}
+
+const MONTH_SHEETS: Record<string, MonthSheetConfig> = {
+  "July": {
+    sheetId:   "1HMhOuyKtRh64ndlPuP9SfRXB8UEi6KXYDAyvWP7MNgo",
+    gid:       "1406742693",
+    masterTab: "Master sheet",
+  },
+  "August": {
+    sheetId:   "1WXY-OLcWiKWeOsNIkKT46RV47wCkNCCvAGnI4d0yfWM",
+    gid:       "14465088",
+    masterTab: "03-August",   // fallback master tab for the month
+  },
+};
+
+// Default fallback (most recent known month)
+const DEFAULT_CONFIG = MONTH_SHEETS["August"];
+
+/** Detect month name from a date string like "03-August", "01-July" */
+function detectMonth(date: string): string | null {
+  const parts = date.split(/[-\s]/);
+  // Usually "DD-MonthName" — month part is index 1
+  for (let i = 1; i < parts.length; i++) {
+    const p = parts[i];
+    if (p && /^[A-Za-z]/.test(p)) return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
+  }
+  return null;
+}
+
+function getConfig(date?: string | null): MonthSheetConfig {
+  if (date) {
+    const month = detectMonth(date);
+    if (month && MONTH_SHEETS[month]) return MONTH_SHEETS[month];
+  }
+  return DEFAULT_CONFIG;
+}
 
 type CellValue = string | number | null;
 
@@ -28,10 +69,14 @@ async function fetchGViz(url: string): Promise<GVizResult | null> {
   } catch { return null; }
 }
 
-async function fetchByGid(gid: string)  { return fetchGViz(`https://docs.google.com/spreadsheets/d/${HGP_SHEET_ID}/gviz/tq?tqx=out:json&gid=${gid}`); }
-async function fetchByTab(tab: string)   { return fetchGViz(`https://docs.google.com/spreadsheets/d/${HGP_SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}`); }
+function fetchByGid(sheetId: string, gid: string) {
+  return fetchGViz(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&gid=${gid}`);
+}
+function fetchByTab(sheetId: string, tab: string) {
+  return fetchGViz(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tab)}`);
+}
 
-async function fetchDateTab(date: string): Promise<{ result: GVizResult; tabUsed: string } | null> {
+async function fetchDateTab(sheetId: string, date: string): Promise<{ result: GVizResult; tabUsed: string } | null> {
   const [day, month] = date.split("-");
   const variants = [
     date,
@@ -42,14 +87,14 @@ async function fetchDateTab(date: string): Promise<{ result: GVizResult; tabUsed
     `${parseInt(day)} ${month}`,
   ].filter(Boolean);
   for (const tab of variants) {
-    const result = await fetchByTab(tab);
+    const result = await fetchByTab(sheetId, tab);
     if (result) return { result, tabUsed: tab };
   }
   return null;
 }
 
 function toNum(val: CellValue): number {
-  if (typeof val === "number") return val;          // keep sign (negatives!)
+  if (typeof val === "number") return val;
   if (typeof val === "string") {
     const n = parseFloat(val.replace(/[^\d.-]/g, ""));
     return isNaN(n) ? 0 : n;
@@ -71,7 +116,6 @@ export interface HGPManpowerRow {
 function parseResult(result: GVizResult): HGPManpowerRow[] {
   const { cols, rows } = result;
 
-  // ── Map columns using GViz col labels (GViz puts header row into cols, not rows) ──
   const lower = cols.map((c) => c.toLowerCase());
 
   let catCol   = lower.findIndex((v) => v.includes("category") || v.includes("description") || v.includes("trade"));
@@ -79,10 +123,8 @@ function parseResult(result: GVizResult): HGPManpowerRow[] {
   let availCol = lower.findIndex((v) => v.includes("available") || v.includes("actual") || v.includes("avail"));
   let sfCol    = lower.findIndex((v) => v.includes("shortfall") || v.includes("short fall") || v.includes("deficit"));
 
-  // Fallback if cols don't have labels (e.g. cols are ["A","B","C","D"])
   const colsHaveLabels = catCol >= 0 || reqCol >= 0 || availCol >= 0;
   if (!colsHaveLabels) {
-    // Scan first few rows for a header row
     let headerIdx = -1;
     for (let i = 0; i < Math.min(rows.length, 10); i++) {
       const rl = rows[i].map((v) => str(v).toLowerCase());
@@ -91,12 +133,10 @@ function parseResult(result: GVizResult): HGPManpowerRow[] {
       const ai = rl.findIndex((v) => v.includes("available") || v.includes("actual"));
       if (ri >= 0 || ai >= 0) { headerIdx = i; catCol = ci >= 0 ? ci : 0; reqCol = ri; availCol = ai; sfCol = rl.findIndex((v) => v.includes("shortfall")); break; }
     }
-    // If still no header found default to A=0 B=1 C=2 D=3
     if (catCol < 0)   catCol   = 0;
     if (reqCol < 0)   reqCol   = 1;
     if (availCol < 0) availCol = 2;
     if (sfCol < 0)    sfCol    = 3;
-    // Skip rows up to and including the header
     const startIdx = headerIdx >= 0 ? headerIdx + 1 : 0;
     return buildRows(rows.slice(startIdx), catCol, reqCol, availCol, sfCol);
   }
@@ -106,7 +146,6 @@ function parseResult(result: GVizResult): HGPManpowerRow[] {
   if (availCol < 0) availCol = 2;
   if (sfCol    < 0) sfCol    = 3;
 
-  // GViz already stripped the header row into cols — parse ALL rows as data
   return buildRows(rows, catCol, reqCol, availCol, sfCol);
 }
 
@@ -128,7 +167,6 @@ function buildRows(
     const required  = reqCol   >= 0 ? toNum(row[reqCol])   : 0;
     const available = availCol >= 0 ? toNum(row[availCol]) : 0;
     const sfRaw     = sfCol    >= 0 && sfCol < row.length ? toNum(row[sfCol]) : 0;
-    // Use sheet shortfall if present; otherwise compute
     const shortfall = sfRaw !== 0 ? sfRaw : required - available;
 
     result.push({ category, requiredManpower: required, availableManpower: available, shortfall });
@@ -140,22 +178,24 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const date = searchParams.get("date");
 
+  const config = getConfig(date);
+  const { sheetId, gid, masterTab } = config;
+
   let gviz: GVizResult | null = null;
-  let source = `gid:${HGP_GID}`;
+  let source = `gid:${gid}`;
 
   if (date) {
-    const hit = await fetchDateTab(date);
+    const hit = await fetchDateTab(sheetId, date);
     if (hit) { gviz = hit.result; source = `tab:${hit.tabUsed}`; }
   }
 
   if (!gviz) {
-    // Try "Master sheet" tab first, fall back to gid
-    gviz = await fetchByTab(HGP_MASTER_TAB);
-    source = `tab:${HGP_MASTER_TAB}`;
+    gviz = await fetchByTab(sheetId, masterTab);
+    source = `tab:${masterTab}`;
   }
   if (!gviz) {
-    gviz = await fetchByGid(HGP_GID);
-    source = `gid:${HGP_GID}`;
+    gviz = await fetchByGid(sheetId, gid);
+    source = `gid:${gid}`;
   }
 
   if (!gviz) {
