@@ -156,12 +156,30 @@ export default function Dashboard() {
     [projects]
   );
 
-  // Areas within the selected tower (or all areas if none selected)
+  // Desired display order for areas
+  const AREA_ORDER = [
+    "D -Wall Work",
+    "Excavation",
+    "Anchor",
+    "PCC",
+    "Basement Raft Work",
+    "Column and Slab work",
+    "HGP - Sales Office",
+  ];
+
+  // Areas within the selected tower, sorted by the defined sequence
   const areas: AreaNode[] = useMemo(() => {
     if (!projects) return [];
     if (selectedTower) {
       const tw = towers.find((t) => t.towerId === selectedTower);
-      return tw?.Area ?? [];
+      const raw = tw?.Area ?? [];
+      return [...raw].sort((a, b) => {
+        const ai = AREA_ORDER.findIndex((n) => a.areaName?.trim().toLowerCase() === n.trim().toLowerCase());
+        const bi = AREA_ORDER.findIndex((n) => b.areaName?.trim().toLowerCase() === n.trim().toLowerCase());
+        const aIdx = ai === -1 ? 999 : ai;
+        const bIdx = bi === -1 ? 999 : bi;
+        return aIdx - bIdx;
+      });
     }
     return [];
   }, [projects, towers, selectedTower]);
