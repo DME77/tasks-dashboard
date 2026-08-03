@@ -35,13 +35,25 @@ const ACC_SHEETS: Record<string, MonthSheets> = {
     tabStyle: "long",                                            // tabs: 01-July, 02-July …
     sheetVersion: "v2",                                          // Target/ShortFall cols added
   },
+  "2026-7": {                                                    // August 2026
+    dlr: "1sP6k8xLJyDBFjU2x8k9ujEcY0LgjDbsiW_TOcSeTjYo",       // ACC DLR August
+    dpr: null,
+    tabStyle: "long",                                            // tabs: 01-August, 02-August …
+    sheetVersion: "v2",
+  },
 };
 
 const HGP_SHEETS: Record<string, MonthSheets> = {
   "2026-6": {                                                    // July 2026
-    dlr: "1HMhOuyKtRh64ndlPuP9SfRXB8UEi6KXYDAyvWP7MNgo",       // HGP DLR July
+    dlr: "1HMhOuyKtRh64ndlPuP9SfRXB8UEi6KXYDAyvWP7MNgo",       // HGP/Ethimo DLR July
     dpr: null,
     tabStyle: "long",                                            // tabs: 01-July, 02-July …
+    sheetVersion: "v2",
+  },
+  "2026-7": {                                                    // August 2026
+    dlr: "1WXY-OLcWiKWeOsNIkKT46RV47wCkNCCvAGnI4d0yfWM",       // Ethimo DLR August
+    dpr: null,
+    tabStyle: "long",                                            // tabs: 01-August, 02-August …
     sheetVersion: "v2",
   },
 };

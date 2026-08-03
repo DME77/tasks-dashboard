@@ -363,6 +363,7 @@ export default function Manpower({ theme }: { theme: "dark" | "light" }) {
   const [selMonth, setSelMonth] = useState(() => {
     const now = new Date(); return { year: now.getFullYear(), month: now.getMonth() };
   });
+  const [contractor,   setContractor]   = useState<"ACC" | "Ethimo">("ACC");
   const [data,         setData]         = useState<BillingData | null>(null);
   const [error,        setError]        = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -371,13 +372,13 @@ export default function Manpower({ theme }: { theme: "dark" | "light" }) {
 
   useEffect(() => {
     setRefreshing(true); setSelectedDate(null);
-    const url = `/api/billing?month=${selMonth.month}&year=${selMonth.year}&t=${Date.now()}`;
+    const url = `/api/billing?month=${selMonth.month}&year=${selMonth.year}&contractor=${contractor}&t=${Date.now()}`;
     fetch(url, { cache: "no-store" })
       .then(r => r.json())
       .then(d => { setData(d); setError(null); })
       .catch(e => setError(e.message))
       .finally(() => setRefreshing(false));
-  }, [selMonth.month, selMonth.year, refreshTick]);
+  }, [selMonth.month, selMonth.year, contractor, refreshTick]);
 
   const activeDates   = useMemo(() => data?.dailyManpower.map(d => d.date) ?? [], [data]);
   const datesWithData = useMemo(() => {
@@ -399,7 +400,18 @@ export default function Manpower({ theme }: { theme: "dark" | "light" }) {
       {/* Top bar */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 600 }}>MONTH</span>
+        {/* Contractor toggle */}
+        <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 600 }}>CONTRACTOR</span>
+        {(["ACC", "Ethimo"] as const).map(c => (
+          <button key={c} onClick={() => setContractor(c)} style={{
+            padding: "7px 14px", borderRadius: 8, fontWeight: 600, fontSize: 13,
+            border: "2px solid var(--border)",
+            background: contractor === c ? "var(--accent)" : "var(--sidebar-bg)",
+            color: contractor === c ? "#fff" : "var(--text)",
+            cursor: "pointer",
+          }}>{c}</button>
+        ))}
+        <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 600, marginLeft: 8 }}>MONTH</span>
         <select value={`${selMonth.year}-${selMonth.month}`}
           onChange={e => { const [y,m] = e.target.value.split("-").map(Number); setSelMonth({year:y,month:m}); }}
           style={{ padding: "7px 12px", borderRadius: 8, border: "2px solid var(--border)",
@@ -426,6 +438,11 @@ export default function Manpower({ theme }: { theme: "dark" | "light" }) {
             padding: "8px 14px", borderRadius: 8, background: "var(--sidebar-bg)", border: "1px solid var(--border)" }}>
             <span style={{ fontSize: 15 }}>👷</span>
             <span style={{ fontWeight: 700, fontSize: 13 }}>{monthLabel}</span>
+            <span style={{
+              padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+              background: contractor === "Ethimo" ? "#f59e0b22" : "#3b82f622",
+              color: contractor === "Ethimo" ? "#f59e0b" : "#3b82f6",
+            }}>{contractor}</span>
             <span style={{ color: "var(--muted)", fontSize: 12 }}>
               — {datesWithData.size} day{datesWithData.size !== 1 ? "s" : ""} with workers recorded
             </span>
