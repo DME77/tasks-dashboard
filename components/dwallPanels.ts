@@ -16,58 +16,26 @@
 export const DWALL_IMAGE = "/drawings/dwall-layout.png";
 
 /** Native pixel size of the drawing image — used to keep the overlay aligned. */
-export const DWALL_IMAGE_W = 3309;
-export const DWALL_IMAGE_H = 2339;
+export const DWALL_IMAGE_W = 5052;
+export const DWALL_IMAGE_H = 3573;
 
 export type PanelType = "A" | "B" | "C" | "D" | "L";
 export interface PanelCoord { x: number; y: number }
 
 /** Normalized (0–1) centre position of every panel label on the drawing. */
 export const PANEL_COORDS: Record<string, PanelCoord> = {
-  A1: { x: 0.4754, y: 0.8632 },
-  A2: { x: 0.4558, y: 0.8632 },
-  A3: { x: 0.436, y: 0.8634 },
-  A4: { x: 0.4149, y: 0.8639 },
-  A5: { x: 0.3959, y: 0.8638 },
-  A6: { x: 0.378, y: 0.8641 },
-  A7: { x: 0.3567, y: 0.8631 },
-  A8: { x: 0.3373, y: 0.8634 },
-  A9: { x: 0.3191, y: 0.8629 },
-  A10: { x: 0.2991, y: 0.863 },
-  A11: { x: 0.28, y: 0.8633 },
-  A12: { x: 0.2594, y: 0.8633 },
-  A13: { x: 0.2319, y: 0.8594 },
-  A14: { x: 0.2319, y: 0.8667 },
-  A15: { x: 0.2076, y: 0.8815 },
-  A16: { x: 0.2164, y: 0.8492 },
-  A17: { x: 0.2062, y: 0.835 },
-  A18: { x: 0.1885, y: 0.8121 },
-  A19: { x: 0.1747, y: 0.7925 },
-  A20: { x: 0.1606, y: 0.7709 },
-  A21: { x: 0.1473, y: 0.7522 },
-  A22: { x: 0.1333, y: 0.7334 },
-  A23: { x: 0.1197, y: 0.7151 },
-  A24: { x: 0.1097, y: 0.6992 },
-  A25: { x: 0.0973, y: 0.6836 },
-  A26: { x: 0.0898, y: 0.6717 },
-  A27: { x: 0.0898, y: 0.6528 },
-  A28: { x: 0.0897, y: 0.6266 },
-  A29: { x: 0.0897, y: 0.5983 },
-  A30: { x: 0.0897, y: 0.5708 },
-  A31: { x: 0.0904, y: 0.542 },
-  A32: { x: 0.0899, y: 0.5146 },
-  A33: { x: 0.0897, y: 0.4873 },
-  A34: { x: 0.0898, y: 0.4602 },
-  A35: { x: 0.0895, y: 0.4322 },
-  A36: { x: 0.0896, y: 0.4026 },
-  A37: { x: 0.0895, y: 0.3764 },
-  A38: { x: 0.0897, y: 0.3498 },
-  A39: { x: 0.0896, y: 0.3216 },
-  A40: { x: 0.0895, y: 0.2938 },
-  A41: { x: 0.0903, y: 0.2666 },
-  A42: { x: 0.09, y: 0.2366 },
-  A43: { x: 0.0899, y: 0.2106 },
-  A44: { x: 0.0896, y: 0.1824 },
+  // Type-A: 11 panels on the diagonal bottom-left section (updated drawing)
+  A1:  { x: 0.233,  y: 0.863  },
+  A2:  { x: 0.218,  y: 0.851  },
+  A3:  { x: 0.207,  y: 0.836  },
+  A4:  { x: 0.190,  y: 0.814  },
+  A5:  { x: 0.175,  y: 0.794  },
+  A6:  { x: 0.161,  y: 0.772  },
+  A7:  { x: 0.148,  y: 0.753  },
+  A8:  { x: 0.134,  y: 0.734  },
+  A9:  { x: 0.120,  y: 0.716  },
+  A10: { x: 0.109,  y: 0.700  },
+  A11: { x: 0.097,  y: 0.684  },
   B1: { x: 0.9291, y: 0.8631 },
   B2: { x: 0.9089, y: 0.8628 },
   B3: { x: 0.8894, y: 0.8632 },
@@ -156,7 +124,7 @@ export const PANEL_COORDS: Record<string, PanelCoord> = {
 
 /** All panel IDs grouped by type, in order. */
 export const PANELS_BY_TYPE: Record<PanelType, string[]> = {
-  A: Array.from({ length: 44 }, (_, i) => `A${i + 1}`),
+  A: Array.from({ length: 11 }, (_, i) => `A${i + 1}`),
   B: Array.from({ length: 24 }, (_, i) => `B${i + 1}`),
   C: Array.from({ length: 39 }, (_, i) => `C${i + 1}`),
   D: Array.from({ length: 19 }, (_, i) => `D${i + 1}`),
