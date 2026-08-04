@@ -14,6 +14,7 @@ import ExcavationDrawing from "./ExcavationDrawing";
 import SalesOfficeDrawing from "./SalesOfficeDrawing";
 import RaftSequenceDrawing from "./RaftSequenceDrawing";
 import ColumnSlabDrawing from "./ColumnSlabDrawing";
+import RetainingWallDrawing from "./RetainingWallDrawing";
 import type { Task, ProjectNode, TowerNode, AreaNode, ActiveFilter } from "./types";
 
 /** True when a tower/area name refers to the diaphragm (D) wall, e.g. "D -Wall Work". */
@@ -55,6 +56,11 @@ function isRaftAreaName(name?: string | null): boolean {
 function isColumnSlabAreaName(name?: string | null): boolean {
   if (!name) return false;
   return /column|slab/i.test(name);
+}
+/** True when an area name refers to retaining wall work. */
+function isRetainingWallName(name?: string | null): boolean {
+  if (!name) return false;
+  return /retaining/i.test(name);
 }
 
 /* ── Constants ──────────────────────────────────────────────────────────────── */
@@ -165,6 +171,7 @@ export default function Dashboard() {
     "Basement Raft Work",
     "Column and Slab work",
     "HGP - Sales Office",
+    "Retaining Wall",
   ];
 
   // Areas within the selected tower, sorted by the defined sequence
@@ -283,7 +290,8 @@ export default function Dashboard() {
   const dwallAreaSelected    = isDWallName(selectedAreaName);
   const pccAreaSelected      = isPCCName(selectedAreaName);
   const excavationAreaSelected = isExcavationName(selectedAreaName);
-  const salesOfficeAreaSelected = isSalesOfficeName(selectedAreaName);
+  const salesOfficeAreaSelected    = isSalesOfficeName(selectedAreaName);
+  const retainingWallAreaSelected  = isRetainingWallName(selectedAreaName);
   // CP-Atelier "Basement Raft work" → show the raft-sequence drawing instead of the generic basement one
   const raftSequenceSelected = isAtelierTower(selectedTowerName) && isRaftAreaName(selectedAreaName);
   const columnSlabSelected = isAtelierTower(selectedTowerName) && isColumnSlabAreaName(selectedAreaName);
@@ -543,6 +551,9 @@ export default function Dashboard() {
 
                 {/* ── Sales Office drawing — shown inline when Sales Office area is selected ── */}
                 {salesOfficeAreaSelected && <SalesOfficeDrawing />}
+
+                {/* ── Retaining Wall drawing — shown inline when Retaining Wall area is selected ── */}
+                {retainingWallAreaSelected && <RetainingWallDrawing />}
 
                 <Charts tasks={filteredTasks} theme={theme} />
               </>
