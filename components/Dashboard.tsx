@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { signOut, useSession } from "next-auth/react";
+// import { signOut, useSession } from "next-auth/react"; // AUTH DISABLED
 import KPIs from "./KPIs";
 import Charts from "./Charts";
 import TaskTable from "./TaskTable";
@@ -94,7 +94,7 @@ function taskPct(total: number, completed: number) {
 
 /* ── Component ──────────────────────────────────────────────────────────────── */
 export default function Dashboard() {
-  const { data: session } = useSession();
+  // const { data: session } = useSession(); // AUTH DISABLED
   /* state */
   const [tasks,        setTasks]        = useState<Task[] | null>(null);
   const [projects,     setProjects]     = useState<ProjectNode[] | null>(null);
@@ -345,14 +345,7 @@ export default function Dashboard() {
             >
               {refreshing ? "⟳" : "🔄"}
             </button>
-            <button
-              className="theme-btn"
-              onClick={() => signOut({ callbackUrl: "/" })}
-              title={`Sign out${session?.user?.email ? ` (${session.user.email})` : ""}`}
-              style={{ fontSize: 16 }}
-            >
-              🚪
-            </button>
+            {/* Sign-out button hidden — auth disabled. Re-enable with Google auth. */}
           </div>
         </div>
 
