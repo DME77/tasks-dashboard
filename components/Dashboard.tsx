@@ -15,6 +15,13 @@ import SalesOfficeDrawing from "./SalesOfficeDrawing";
 import RaftSequenceDrawing from "./RaftSequenceDrawing";
 import ColumnSlabDrawing from "./ColumnSlabDrawing";
 import RetainingWallDrawing from "./RetainingWallDrawing";
+import LevelPlanDrawing from "./LevelPlanDrawing";
+import { SLABB2_IMAGE, SLABB2_IMAGE_W, SLABB2_IMAGE_H } from "./slabB2Image";
+import { SLABB1_IMAGE, SLABB1_IMAGE_W, SLABB1_IMAGE_H } from "./slabB1Image";
+import { SLABGF_IMAGE, SLABGF_IMAGE_W, SLABGF_IMAGE_H } from "./slabGFImage";
+import { COLUMNB2_IMAGE, COLUMNB2_IMAGE_W, COLUMNB2_IMAGE_H } from "./columnB2Image";
+import { COLUMNB1_IMAGE, COLUMNB1_IMAGE_W, COLUMNB1_IMAGE_H } from "./columnB1Image";
+import { COLUMNGF_IMAGE, COLUMNGF_IMAGE_W, COLUMNGF_IMAGE_H } from "./columnGFImage";
 import type { Task, ProjectNode, TowerNode, AreaNode, ActiveFilter } from "./types";
 
 /** True when a tower/area name refers to the diaphragm (D) wall, e.g. "D -Wall Work". */
@@ -62,6 +69,13 @@ function isRetainingWallName(name?: string | null): boolean {
   if (!name) return false;
   return /retaining/i.test(name);
 }
+/** Level-plan area matchers for HGP slab & column schedule drawings. */
+function isSlabB2(name?: string | null)    { return !!name && /slab.*b2|b2.*slab/i.test(name); }
+function isSlabB1(name?: string | null)    { return !!name && /slab.*b1|b1.*slab/i.test(name); }
+function isSlabGF(name?: string | null)    { return !!name && /slab.*gf|gf.*slab/i.test(name); }
+function isColumnB2(name?: string | null)  { return !!name && /column.*b2|b2.*column/i.test(name); }
+function isColumnB1(name?: string | null)  { return !!name && /column.*b1|b1.*column/i.test(name); }
+function isColumnGF(name?: string | null)  { return !!name && /column.*gf|gf.*column/i.test(name); }
 
 /* ── Constants ──────────────────────────────────────────────────────────────── */
 const PROJECT_ID   = "cmnjvabgp0077keve33sbnh4c";
@@ -165,13 +179,20 @@ export default function Dashboard() {
   // Desired display order for areas
   const AREA_ORDER = [
     "D -Wall Work",
-    "Excavation",
     "Anchor",
+    "Excavation",
     "PCC",
     "Basement Raft Work",
-    "Column and Slab work",
-    "HGP - Sales Office",
     "Retaining Wall",
+    "Column Schedule B2 Level",
+    "Slab Schedule B2 Level",
+    "Column Schedule B1 Level",
+    "Slab Schedule B1 Level",
+    "Column Schedule GF Level",
+    "Slab Schedule GF Level",
+    "HGP - Sales Office",
+    // Legacy / CP-Atelier
+    "Column and Slab work",
   ];
 
   // Areas within the selected tower, sorted by the defined sequence
@@ -296,6 +317,13 @@ export default function Dashboard() {
   const raftSequenceSelected = isAtelierTower(selectedTowerName) && isRaftAreaName(selectedAreaName);
   const columnSlabSelected = isAtelierTower(selectedTowerName) && isColumnSlabAreaName(selectedAreaName);
   const basementAreaSelected = isBasementName(selectedAreaName) && !raftSequenceSelected;
+  // HGP level-plan drawings
+  const slabB2Selected    = isSlabB2(selectedAreaName);
+  const slabB1Selected    = isSlabB1(selectedAreaName);
+  const slabGFSelected    = isSlabGF(selectedAreaName);
+  const columnB2Selected  = isColumnB2(selectedAreaName);
+  const columnB1Selected  = isColumnB1(selectedAreaName);
+  const columnGFSelected  = isColumnGF(selectedAreaName);
 
   // Fetch live D-Wall panel status the first time the D-Wall area is opened
   useEffect(() => {
@@ -547,6 +575,14 @@ export default function Dashboard() {
 
                 {/* ── Retaining Wall drawing — shown inline when Retaining Wall area is selected ── */}
                 {retainingWallAreaSelected && <RetainingWallDrawing />}
+
+                {/* ── HGP Level-plan drawings (Slab & Column schedules) ── */}
+                {columnB2Selected && <LevelPlanDrawing title="Column Schedule — B2 Level" icon="🏛️" image={COLUMNB2_IMAGE} imageW={COLUMNB2_IMAGE_W} imageH={COLUMNB2_IMAGE_H} />}
+                {slabB2Selected   && <LevelPlanDrawing title="Slab Schedule — B2 Level"   icon="🧱" image={SLABB2_IMAGE}   imageW={SLABB2_IMAGE_W}   imageH={SLABB2_IMAGE_H}   />}
+                {columnB1Selected && <LevelPlanDrawing title="Column Schedule — B1 Level" icon="🏛️" image={COLUMNB1_IMAGE} imageW={COLUMNB1_IMAGE_W} imageH={COLUMNB1_IMAGE_H} />}
+                {slabB1Selected   && <LevelPlanDrawing title="Slab Schedule — B1 Level"   icon="🧱" image={SLABB1_IMAGE}   imageW={SLABB1_IMAGE_W}   imageH={SLABB1_IMAGE_H}   />}
+                {columnGFSelected && <LevelPlanDrawing title="Column Schedule — GF Level" icon="🏛️" image={COLUMNGF_IMAGE} imageW={COLUMNGF_IMAGE_W} imageH={COLUMNGF_IMAGE_H} />}
+                {slabGFSelected   && <LevelPlanDrawing title="Slab Schedule — GF Level"   icon="🧱" image={SLABGF_IMAGE}   imageW={SLABGF_IMAGE_W}   imageH={SLABGF_IMAGE_H}   />}
 
                 <Charts tasks={filteredTasks} theme={theme} />
               </>
