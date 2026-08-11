@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 const SHEET_IDS: Record<string, string> = {
-  acc:    "12-LjA4f1s58ye7O0Ng-LM4EsEHfCMOtVFz_uZ48GfkE",
-  ethimo: "1Gmswb5qlJntyNRiiSfGoAIEoZ8y0KiJzuBup6Qvnj6g",
+  acc:    "1Gmswb5qlJntyNRiiSfGoAIEoZ8y0KiJzuBup6Qvnj6g",
+  ethimo: "12-LjA4f1s58ye7O0Ng-LM4EsEHfCMOtVFz_uZ48GfkE",
 };
 
 type CellValue = string | number | null;
