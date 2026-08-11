@@ -36,6 +36,9 @@ export default function ExcavationDrawing() {
     return () => { alive = false; };
   }, []);
 
+  // Normalise a zone key for fuzzy matching: "NTP -2" == "NTP - 2" == "ntp-2"
+  const normKey = (k: string) => k.toLowerCase().replace(/\s*[-–]\s*/g, "-").replace(/\s+/g, " ").trim();
+
   // Draw drawing + pour-box overlays coloured by live DB status
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -53,9 +56,13 @@ export default function ExcavationDrawing() {
       ctx.drawImage(drawing, 0, 0);
       if (!state) return;
 
+      // Build normalised state lookup so DB names like "NTP -2" match box key "NTP - 2"
+      const normState: Record<string, PourState> = {};
+      for (const [k, v] of Object.entries(state)) normState[normKey(k)] = v;
+
       ctx.save();
       for (const box of EXCAVATION_POUR_BOXES) {
-        const s = state[box.key];
+        const s = normState[normKey(box.key)];
         if (!s) continue;
         const [cr, cg, cb] = COLORS[s];
         const x = box.x0 * W, y = box.y0 * H;
@@ -81,9 +88,9 @@ export default function ExcavationDrawing() {
     return () => { cancelled = true; };
   }, [state]);
 
-  // Count unique zone keys (same key may appear at multiple positions on the drawing)
   const uniqueKeys = [...new Set(EXCAVATION_POUR_BOXES.map((p) => p.key))];
-  const doneCount = state ? uniqueKeys.filter((k) => state[k] === "completed").length : 0;
+  const normState2 = state ? Object.fromEntries(Object.entries(state).map(([k,v]) => [normKey(k), v])) : {};
+  const doneCount = state ? uniqueKeys.filter((k) => normState2[normKey(k)] === "completed").length : 0;
   const total = uniqueKeys.length;
 
   return (

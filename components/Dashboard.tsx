@@ -16,6 +16,7 @@ import RaftSequenceDrawing from "./RaftSequenceDrawing";
 import ColumnSlabDrawing from "./ColumnSlabDrawing";
 import RetainingWallDrawing from "./RetainingWallDrawing";
 import LevelPlanDrawing from "./LevelPlanDrawing";
+import MaterialConsumption from "./MaterialConsumption";
 import { SLABB2_IMAGE, SLABB2_IMAGE_W, SLABB2_IMAGE_H } from "./slabB2Image";
 import { SLABB1_IMAGE, SLABB1_IMAGE_W, SLABB1_IMAGE_H } from "./slabB1Image";
 import { SLABGF_IMAGE, SLABGF_IMAGE_W, SLABGF_IMAGE_H } from "./slabGFImage";
@@ -86,6 +87,7 @@ const TABS = [
   { id: "tasks",      label: "Tasks",             icon: "✅" },
   { id: "drawings",   label: "Drawings",          icon: "📐" },
   { id: "billing",    label: "Daily Manpower Reports", icon: "👷" },
+  { id: "material",   label: "Material Consumption",  icon: "📦" },
   { id: "reports",    label: "Reports",           icon: "📄" },
 ] as const;
 type TabId = typeof TABS[number]["id"];
@@ -607,6 +609,13 @@ export default function Dashboard() {
             )}
 
 
+
+            {/* ── MATERIAL CONSUMPTION tab ──────────────────────────────────── */}
+            {activeTab === "material" && (
+              <div style={{ padding: "20px 0" }}>
+                <MaterialConsumption />
+              </div>
+            )}
 
             {/* ── REPORTS tab ───────────────────────────────────────────────── */}
             {activeTab === "reports" && (

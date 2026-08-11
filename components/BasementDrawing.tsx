@@ -36,6 +36,8 @@ export default function BasementDrawing() {
     return () => { alive = false; };
   }, []);
 
+  const normKey = (k: string) => k.toLowerCase().replace(/\s*[-–]\s*/g, "-").replace(/\s+/g, " ").trim();
+
   // Draw drawing + pour-box overlays coloured by live DB status
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -53,9 +55,12 @@ export default function BasementDrawing() {
       ctx.drawImage(drawing, 0, 0);
       if (!state) return;
 
+      const normState: Record<string, PourState> = {};
+      for (const [k, v] of Object.entries(state)) normState[normKey(k)] = v;
+
       ctx.save();
       for (const box of RAFT_HGP_POUR_BOXES) {
-        const s = state[box.key];
+        const s = normState[normKey(box.key)];
         if (!s) continue;
         const [cr, cg, cb] = COLORS[s];
         const x = box.x0 * W, y = box.y0 * H;
@@ -81,7 +86,9 @@ export default function BasementDrawing() {
   }, [state]);
 
   const uniqueKeys = [...new Set(RAFT_HGP_POUR_BOXES.map((p) => p.key))];
-  const doneCount = state ? uniqueKeys.filter((k) => state[k] === "completed").length : 0;
+  const normKey2 = (k: string) => k.toLowerCase().replace(/\s*[-–]\s*/g, "-").replace(/\s+/g, " ").trim();
+  const normState2 = state ? Object.fromEntries(Object.entries(state).map(([k,v]) => [normKey2(k), v])) : {};
+  const doneCount = state ? uniqueKeys.filter((k) => normState2[normKey2(k)] === "completed").length : 0;
   const total     = uniqueKeys.length;
 
   return (
