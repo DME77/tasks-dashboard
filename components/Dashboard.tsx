@@ -23,6 +23,15 @@ import { SLABGF_IMAGE, SLABGF_IMAGE_W, SLABGF_IMAGE_H } from "./slabGFImage";
 import { COLUMNB2_IMAGE, COLUMNB2_IMAGE_W, COLUMNB2_IMAGE_H } from "./columnB2Image";
 import { COLUMNB1_IMAGE, COLUMNB1_IMAGE_W, COLUMNB1_IMAGE_H } from "./columnB1Image";
 import { COLUMNGF_IMAGE, COLUMNGF_IMAGE_W, COLUMNGF_IMAGE_H } from "./columnGFImage";
+// Homeland Interior / Atelier drawings
+import { ATELIER_EXCAVATION_IMAGE, ATELIER_EXCAVATION_IMAGE_W, ATELIER_EXCAVATION_IMAGE_H } from "./atelierExcavationImage";
+import { ATELIER_RAFT_IMAGE, ATELIER_RAFT_IMAGE_W, ATELIER_RAFT_IMAGE_H } from "./atelierRaftImage";
+import { ATELIER_COLUMNB2_IMAGE, ATELIER_COLUMNB2_IMAGE_W, ATELIER_COLUMNB2_IMAGE_H } from "./atelierColumnB2Image";
+import { ATELIER_COLUMNB1_IMAGE, ATELIER_COLUMNB1_IMAGE_W, ATELIER_COLUMNB1_IMAGE_H } from "./atelierColumnB1Image";
+import { ATELIER_COLUMNGF_IMAGE, ATELIER_COLUMNGF_IMAGE_W, ATELIER_COLUMNGF_IMAGE_H } from "./atelierColumnGFImage";
+import { ATELIER_SLABB2_IMAGE, ATELIER_SLABB2_IMAGE_W, ATELIER_SLABB2_IMAGE_H } from "./atelierSlabB2Image";
+import { ATELIER_SLABB1_IMAGE, ATELIER_SLABB1_IMAGE_W, ATELIER_SLABB1_IMAGE_H } from "./atelierSlabB1Image";
+import { ATELIER_SLABGF_IMAGE, ATELIER_SLABGF_IMAGE_W, ATELIER_SLABGF_IMAGE_H } from "./atelierSlabGFImage";
 import type { Task, ProjectNode, TowerNode, AreaNode, ActiveFilter } from "./types";
 
 /** True when a tower/area name refers to the diaphragm (D) wall, e.g. "D -Wall Work". */
@@ -50,10 +59,15 @@ function isSalesOfficeName(name?: string | null): boolean {
   if (!name) return false;
   return /sales/i.test(name);
 }
-/** True when a tower name refers to the CP-Atelier tower. */
+/** True when a tower name refers to the CP-Atelier or Homeland Interior tower. */
 function isAtelierTower(name?: string | null): boolean {
   if (!name) return false;
-  return /atelier/i.test(name);
+  return /atelier|interior/i.test(name);
+}
+/** True when an area name refers to Skin Wall work. */
+function isSkinWallName(name?: string | null): boolean {
+  if (!name) return false;
+  return /skin\s*wall/i.test(name);
 }
 /** True when an area name refers to raft work (e.g. "Basement Raft work"). */
 function isRaftAreaName(name?: string | null): boolean {
@@ -180,6 +194,7 @@ export default function Dashboard() {
 
   // Desired display order for areas
   const AREA_ORDER = [
+    // ── HGP Tower ────────────────────────────────────────────
     "D -Wall Work",
     "Anchor",
     "Excavation",
@@ -193,7 +208,21 @@ export default function Dashboard() {
     "Column Schedule GF Level",
     "Slab Schedule GF Level",
     "HGP - Sales Office",
-    // Legacy / CP-Atelier
+    // ── Homeland Interior / CP-Atelier ───────────────────────
+    "D -Wall Work",      // shared name
+    "Anchor",            // shared name
+    "Excavation",        // shared name
+    "PCC",               // shared name
+    "Basement Raft Work",
+    "Basement Raft work",
+    "Column Casting - B2 Level",
+    "Slab Casting - B2 Level",
+    "Column Casting - B1 Level",
+    "Slab Casting - B1 Level",
+    "Column Casting - GF Level",
+    "Slab Casting - GF Level",
+    "Skin Wall",
+    // Legacy CP-Atelier names
     "Column and Slab work",
   ];
 
@@ -315,11 +344,16 @@ export default function Dashboard() {
   const excavationAreaSelected = isExcavationName(selectedAreaName);
   const salesOfficeAreaSelected    = isSalesOfficeName(selectedAreaName);
   const retainingWallAreaSelected  = isRetainingWallName(selectedAreaName);
-  // CP-Atelier "Basement Raft work" → show the raft-sequence drawing instead of the generic basement one
-  const raftSequenceSelected = isAtelierTower(selectedTowerName) && isRaftAreaName(selectedAreaName);
-  const columnSlabSelected = isAtelierTower(selectedTowerName) && isColumnSlabAreaName(selectedAreaName);
+  const isInterior = isAtelierTower(selectedTowerName);
+  // CP-Atelier "Basement Raft work" → show raft-sequence drawing
+  const raftSequenceSelected = isInterior && isRaftAreaName(selectedAreaName);
+  const columnSlabSelected = isInterior && isColumnSlabAreaName(selectedAreaName)
+    && !isSlabB2(selectedAreaName) && !isSlabB1(selectedAreaName) && !isSlabGF(selectedAreaName)
+    && !isColumnB2(selectedAreaName) && !isColumnB1(selectedAreaName) && !isColumnGF(selectedAreaName);
   const basementAreaSelected = isBasementName(selectedAreaName) && !raftSequenceSelected;
-  // HGP level-plan drawings
+  // Skin Wall (Interior only)
+  const skinWallSelected = isSkinWallName(selectedAreaName);
+  // Level-plan drawings — split by tower
   const slabB2Selected    = isSlabB2(selectedAreaName);
   const slabB1Selected    = isSlabB1(selectedAreaName);
   const slabGFSelected    = isSlabGF(selectedAreaName);
@@ -563,28 +597,39 @@ export default function Dashboard() {
                 {/* ── Basement drawing — shown inline when Basement area is selected ── */}
                 {basementAreaSelected && <BasementDrawing />}
 
-                {/* ── Raft sequence — shown inline for CP-Atelier "Basement Raft work" area ── */}
-                {raftSequenceSelected && <RaftSequenceDrawing />}
+                {/* ── Raft sequence — CP-Atelier legacy; Interior uses static raft drawing ── */}
+                {raftSequenceSelected && !isInterior && <RaftSequenceDrawing />}
+                {raftSequenceSelected &&  isInterior && <LevelPlanDrawing title="Basement Raft Work" icon="🏗️" image={ATELIER_RAFT_IMAGE} imageW={ATELIER_RAFT_IMAGE_W} imageH={ATELIER_RAFT_IMAGE_H} />}
 
                 {/* ── B2 slab pour plan — shown inline for CP-Atelier "Column and Slab work" area ── */}
                 {columnSlabSelected && <ColumnSlabDrawing />}
 
-                {/* ── Excavation drawing — shown inline when Excavation area is selected ── */}
-                {excavationAreaSelected && <ExcavationDrawing />}
+                {/* ── Excavation drawing ── */}
+                {excavationAreaSelected && !isInterior && <ExcavationDrawing />}
+                {excavationAreaSelected && isInterior  && <LevelPlanDrawing title="Excavation Plan" icon="⛏️" image={ATELIER_EXCAVATION_IMAGE} imageW={ATELIER_EXCAVATION_IMAGE_W} imageH={ATELIER_EXCAVATION_IMAGE_H} />}
 
-                {/* ── Sales Office drawing — shown inline when Sales Office area is selected ── */}
+                {/* ── Sales Office drawing ── */}
                 {salesOfficeAreaSelected && <SalesOfficeDrawing />}
 
-                {/* ── Retaining Wall drawing — shown inline when Retaining Wall area is selected ── */}
+                {/* ── Retaining Wall drawing ── */}
                 {retainingWallAreaSelected && <RetainingWallDrawing />}
 
-                {/* ── HGP Level-plan drawings (Slab & Column schedules) ── */}
-                {columnB2Selected && <LevelPlanDrawing title="Column Schedule — B2 Level" icon="🏛️" image={COLUMNB2_IMAGE} imageW={COLUMNB2_IMAGE_W} imageH={COLUMNB2_IMAGE_H} />}
-                {slabB2Selected   && <LevelPlanDrawing title="Slab Schedule — B2 Level"   icon="🧱" image={SLABB2_IMAGE}   imageW={SLABB2_IMAGE_W}   imageH={SLABB2_IMAGE_H}   />}
-                {columnB1Selected && <LevelPlanDrawing title="Column Schedule — B1 Level" icon="🏛️" image={COLUMNB1_IMAGE} imageW={COLUMNB1_IMAGE_W} imageH={COLUMNB1_IMAGE_H} />}
-                {slabB1Selected   && <LevelPlanDrawing title="Slab Schedule — B1 Level"   icon="🧱" image={SLABB1_IMAGE}   imageW={SLABB1_IMAGE_W}   imageH={SLABB1_IMAGE_H}   />}
-                {columnGFSelected && <LevelPlanDrawing title="Column Schedule — GF Level" icon="🏛️" image={COLUMNGF_IMAGE} imageW={COLUMNGF_IMAGE_W} imageH={COLUMNGF_IMAGE_H} />}
-                {slabGFSelected   && <LevelPlanDrawing title="Slab Schedule — GF Level"   icon="🧱" image={SLABGF_IMAGE}   imageW={SLABGF_IMAGE_W}   imageH={SLABGF_IMAGE_H}   />}
+                {/* ── Skin Wall drawing (Homeland Interior) ── */}
+                {skinWallSelected && <LevelPlanDrawing title="Skin Wall" icon="🏢" image={ATELIER_RAFT_IMAGE} imageW={ATELIER_RAFT_IMAGE_W} imageH={ATELIER_RAFT_IMAGE_H} />}
+
+                {/* ── Level-plan drawings — HGP (Schedule) vs Interior (Casting) ── */}
+                {columnB2Selected && !isInterior && <LevelPlanDrawing title="Column Schedule — B2 Level"  icon="🏛️" image={COLUMNB2_IMAGE}         imageW={COLUMNB2_IMAGE_W}         imageH={COLUMNB2_IMAGE_H}         />}
+                {columnB2Selected &&  isInterior && <LevelPlanDrawing title="Column Casting — B2 Level"   icon="🏛️" image={ATELIER_COLUMNB2_IMAGE}  imageW={ATELIER_COLUMNB2_IMAGE_W}  imageH={ATELIER_COLUMNB2_IMAGE_H}  />}
+                {slabB2Selected   && !isInterior && <LevelPlanDrawing title="Slab Schedule — B2 Level"    icon="🧱" image={SLABB2_IMAGE}            imageW={SLABB2_IMAGE_W}            imageH={SLABB2_IMAGE_H}            />}
+                {slabB2Selected   &&  isInterior && <LevelPlanDrawing title="Slab Casting — B2 Level"     icon="🧱" image={ATELIER_SLABB2_IMAGE}    imageW={ATELIER_SLABB2_IMAGE_W}    imageH={ATELIER_SLABB2_IMAGE_H}    />}
+                {columnB1Selected && !isInterior && <LevelPlanDrawing title="Column Schedule — B1 Level"  icon="🏛️" image={COLUMNB1_IMAGE}         imageW={COLUMNB1_IMAGE_W}         imageH={COLUMNB1_IMAGE_H}         />}
+                {columnB1Selected &&  isInterior && <LevelPlanDrawing title="Column Casting — B1 Level"   icon="🏛️" image={ATELIER_COLUMNB1_IMAGE}  imageW={ATELIER_COLUMNB1_IMAGE_W}  imageH={ATELIER_COLUMNB1_IMAGE_H}  />}
+                {slabB1Selected   && !isInterior && <LevelPlanDrawing title="Slab Schedule — B1 Level"    icon="🧱" image={SLABB1_IMAGE}            imageW={SLABB1_IMAGE_W}            imageH={SLABB1_IMAGE_H}            />}
+                {slabB1Selected   &&  isInterior && <LevelPlanDrawing title="Slab Casting — B1 Level"     icon="🧱" image={ATELIER_SLABB1_IMAGE}    imageW={ATELIER_SLABB1_IMAGE_W}    imageH={ATELIER_SLABB1_IMAGE_H}    />}
+                {columnGFSelected && !isInterior && <LevelPlanDrawing title="Column Schedule — GF Level"  icon="🏛️" image={COLUMNGF_IMAGE}         imageW={COLUMNGF_IMAGE_W}         imageH={COLUMNGF_IMAGE_H}         />}
+                {columnGFSelected &&  isInterior && <LevelPlanDrawing title="Column Casting — GF Level"   icon="🏛️" image={ATELIER_COLUMNGF_IMAGE}  imageW={ATELIER_COLUMNGF_IMAGE_W}  imageH={ATELIER_COLUMNGF_IMAGE_H}  />}
+                {slabGFSelected   && !isInterior && <LevelPlanDrawing title="Slab Schedule — GF Level"    icon="🧱" image={SLABGF_IMAGE}            imageW={SLABGF_IMAGE_W}            imageH={SLABGF_IMAGE_H}            />}
+                {slabGFSelected   &&  isInterior && <LevelPlanDrawing title="Slab Casting — GF Level"     icon="🧱" image={ATELIER_SLABGF_IMAGE}    imageW={ATELIER_SLABGF_IMAGE_W}    imageH={ATELIER_SLABGF_IMAGE_H}    />}
 
                 <Charts tasks={filteredTasks} theme={theme} />
               </>
