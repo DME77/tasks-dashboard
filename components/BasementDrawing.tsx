@@ -13,7 +13,7 @@ const zoomBtn: React.CSSProperties = {
 
 type PourState = "completed" | "overdue" | "upcoming";
 const COLORS: Record<PourState, [number, number, number]> = {
-  completed: [22,  150,  60],   // green
+  completed: [0,   120,  40],   // dark green
   overdue:   [214,  40,  40],   // red
   upcoming:  [37,   99, 235],   // blue
 };
@@ -65,7 +65,7 @@ export default function BasementDrawing() {
         const [cr, cg, cb] = COLORS[s];
         const x = box.x0 * W, y = box.y0 * H;
         const w = (box.x1 - box.x0) * W, h = (box.y1 - box.y0) * H;
-        ctx.globalAlpha = 0.52;
+        ctx.globalAlpha = 0.72;
         ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
         ctx.fillRect(x, y, w, h);
         ctx.globalAlpha = 1;
@@ -113,7 +113,7 @@ export default function BasementDrawing() {
 
         {/* Legend */}
         <div style={{ display: "flex", gap: 12, alignItems: "center", fontSize: 11, color: "var(--muted)", flexWrap: "wrap" }}>
-          {([["completed","rgb(22,150,60)"],["overdue","rgb(214,40,40)"],["upcoming","rgb(37,99,235)"]] as const).map(([label, color]) => (
+          {([["completed","rgb(0,120,40)"],["overdue","rgb(214,40,40)"],["upcoming","rgb(37,99,235)"]] as const).map(([label, color]) => (
             <span key={label} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
               <span style={{ width: 11, height: 11, borderRadius: 3, background: color, display: "inline-block" }} />
               {label.charAt(0).toUpperCase() + label.slice(1)}

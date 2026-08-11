@@ -407,7 +407,7 @@ export default function Dashboard() {
         {filteredTasks && (
           <>
             {/* ── Tower / Area category cards — hidden on Billing tab ─── */}
-            {activeTab !== "billing" && activeTab !== "drawings" && activeTab !== "reports" && <><section className="category-section">
+            {activeTab !== "billing" && activeTab !== "drawings" && activeTab !== "reports" && activeTab !== "material" && <><section className="category-section">
               <div className="section-header">
                 <span className="section-title">🏗️ All Towers</span>
                 <span className="live-chip">LIVE</span>

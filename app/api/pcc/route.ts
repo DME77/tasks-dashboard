@@ -36,16 +36,20 @@ export async function GET() {
     today.setHours(0, 0, 0, 0);
 
     for (const r of rows) {
-      const name = r.SubArea?.subAreaName;
+      // Key by TASK NAME — matches pour-box labels (e.g. "NTP -2") on the drawing
+      const name = (r.taskName as string | undefined) ?? r.SubArea?.subAreaName;
       if (!name) continue;
       const completed = !!r.completed;
-      detail[name] = { completed, completedAt: r.completedAt ?? null, endDate: r.endDate ?? null };
-      if (completed) {
-        state[name] = "completed";
-        done++;
-      } else {
-        const due = r.endDate ? new Date(r.endDate) : null;
-        state[name] = due && due < today ? "overdue" : "upcoming";
+      const due = r.endDate ? new Date(r.endDate) : null;
+
+      let s: "completed" | "overdue" | "upcoming";
+      if (completed) { s = "completed"; done++; }
+      else if (due && due < today) { s = "overdue"; }
+      else { s = "upcoming"; }
+
+      if (!(name in state) || s === "completed") {
+        state[name] = s;
+        detail[name] = { completed, completedAt: r.completedAt ?? null, endDate: r.endDate ?? null };
       }
     }
 

@@ -38,51 +38,41 @@ export async function GET() {
         `&limit=500`
     );
 
-    // Group tasks by sub-area name
-    const bySubArea = new Map<string, { completed: boolean; endDate: string | null }[]>();
-    for (const r of rows) {
-      const name = r.SubArea?.subAreaName;
-      if (!name) continue;
-      if (!bySubArea.has(name)) bySubArea.set(name, []);
-      bySubArea.get(name)!.push({ completed: !!r.completed, endDate: r.endDate ?? null });
-    }
-
+    // Key state by TASK NAME (e.g. "NTP -2") — this matches the pour-box labels on the drawing.
+    // Sub-area names (e.g. "Zone -1 (Part 1)") are a grouping layer above the individual zones.
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const state: Record<string, PourState> = {};
     let doneCount = 0;
 
-    for (const [name, tasks] of bySubArea) {
-      if (tasks.length === 0) continue;
+    for (const r of rows) {
+      const name = r.taskName as string | undefined;
+      if (!name) continue;
 
-      const allDone = tasks.every((t) => t.completed);
-      if (allDone) {
-        state[name] = "completed";
+      const completed = !!r.completed;
+      const due = r.endDate ? new Date(r.endDate) : null;
+
+      let s: PourState;
+      if (completed) {
+        s = "completed";
         doneCount++;
-        continue;
+      } else if (due && due < today) {
+        // Auto-complete: scheduled date passed → treat as completed (green)
+        s = "completed";
+        doneCount++;
+      } else {
+        s = "upcoming";
       }
 
-      // Auto-complete: if ALL incomplete tasks have an endDate that has passed,
-      // treat the zone as completed (green) — scheduled date = completion date.
-      const incompleteTasks = tasks.filter((t) => !t.completed);
-      const allPastDue = incompleteTasks.length > 0 && incompleteTasks.every((t) => {
-        const due = t.endDate ? new Date(t.endDate) : null;
-        return due !== null && due < today;
-      });
-
-      if (allPastDue) {
-        state[name] = "completed";
-        doneCount++;
-        continue;
+      // If the same task name appears multiple times, "completed" wins over others
+      if (!(name in state) || s === "completed") {
+        state[name] = s;
       }
-
-      // Any incomplete task overdue (but not all)? → upcoming still
-      state[name] = "upcoming";
     }
 
     return NextResponse.json(
-      { state, total: bySubArea.size, doneCount, updatedAt: new Date().toISOString() },
+      { state, total: Object.keys(state).length, doneCount, updatedAt: new Date().toISOString() },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (e: any) {

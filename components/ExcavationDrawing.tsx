@@ -13,7 +13,7 @@ const zoomBtn: React.CSSProperties = {
 
 type PourState = "completed" | "overdue" | "upcoming";
 const COLORS: Record<PourState, [number, number, number]> = {
-  completed: [22, 150, 60],   // green — work completed
+  completed: [0, 120, 40],   // green — work completed
   overdue: [214, 40, 40],     // red — deadline passed
   upcoming: [37, 99, 235],    // blue — deadline still ahead
 };
@@ -67,7 +67,7 @@ export default function ExcavationDrawing() {
         const [cr, cg, cb] = COLORS[s];
         const x = box.x0 * W, y = box.y0 * H;
         const w = (box.x1 - box.x0) * W, h = (box.y1 - box.y0) * H;
-        ctx.globalAlpha = 0.52;
+        ctx.globalAlpha = 0.72;
         ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
         ctx.fillRect(x, y, w, h);
         ctx.globalAlpha = 1;
@@ -112,7 +112,7 @@ export default function ExcavationDrawing() {
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center", fontSize: 11, color: "var(--muted)", flexWrap: "wrap" }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <span style={{ width: 11, height: 11, borderRadius: 3, background: "rgb(22,150,60)", display: "inline-block" }} /> Completed
+            <span style={{ width: 11, height: 11, borderRadius: 3, background: "rgb(0,120,40)", display: "inline-block" }} /> Completed
           </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
             <span style={{ width: 11, height: 11, borderRadius: 3, background: "rgb(214,40,40)", display: "inline-block" }} /> Overdue
