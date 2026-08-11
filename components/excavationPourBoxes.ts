@@ -1,16 +1,28 @@
-/* Pour box rectangles (normalized 0–1) on the excavation drawing image.
- * `key` matches the ASAP sub-area name. The boxes are recoloured live on a
- * canvas (green = completed, red = pending) from /api/excavation. */
 export interface PourBox { key: string; x0: number; y0: number; x1: number; y1: number; }
 
+// Zone keys from new drawing labels (match these to ASAP sub-area names if different)
+// Zones found: ['NT, Pour - 5', 'NT, Pour - 6', 'NTP - 1', 'NTP - 1A', 'NTP - 2', 'NTP - 3', 'NTP - 4', 'NTP - 5', 'NTP - 6', 'NTP - 7', 'NTP - 8', 'TP - 1', 'TP - 2', 'TP - 3']
 export const EXCAVATION_POUR_BOXES: PourBox[] = [
-  { key: "Tower Pour - 1", x0: 0.3069, y0: 0.2168, x1: 0.3858, y1: 0.3099 },
-  { key: "Tower Pour - 2", x0: 0.2865, y0: 0.4148, x1: 0.3610, y1: 0.4929 },
-  { key: "Tower Pour - 3", x0: 0.2962, y0: 0.6778, x1: 0.3774, y1: 0.7334 },
-  { key: "NT Pour - 1", x0: 0.1362, y0: 0.1889, x1: 0.2025, y1: 0.2381 },
-  { key: "NT Pour - 2", x0: 0.1321, y0: 0.5829, x1: 0.2014, y1: 0.6428 },
-  { key: "NT Pour - 3", x0: 0.3413, y0: 0.0921, x1: 0.4083, y1: 0.1463 },
-  { key: "NT Pour - 4", x0: 0.4466, y0: 0.3666, x1: 0.5115, y1: 0.4241 },
-  { key: "NT Pour - 5", x0: 0.4214, y0: 0.5382, x1: 0.4898, y1: 0.5788 },
-  { key: "NT Pour - 6", x0: 0.4396, y0: 0.6855, x1: 0.5094, y1: 0.7307 },
+  { key: "NTP - 2", x0: 0.6539, y0: 0.6032, x1: 0.7539, y1: 0.6532 },
+  { key: "NTP - 4", x0: 0.8345, y0: 0.5339, x1: 0.9345, y1: 0.5839 },
+  { key: "TP - 2", x0: 0.7491, y0: 0.5539, x1: 0.8491, y1: 0.6039 },
+  { key: "NTP - 1", x0: 0.6558, y0: 0.4824, x1: 0.7558, y1: 0.5324 },
+  { key: "NTP - 1A", x0: 0.6586, y0: 0.4439, x1: 0.7586, y1: 0.4939 },
+  { key: "NTP - 3", x0: 0.7785, y0: 0.4465, x1: 0.8785, y1: 0.4965 },
+  { key: "TP - 1", x0: 0.75, y0: 0.4881, x1: 0.85, y1: 0.5381 },
+  { key: "TP - 3", x0: 0.7554, y0: 0.6204, x1: 0.8554, y1: 0.6704 },
+  { key: "NTP - 8", x0: 0.6796, y0: 0.6615, x1: 0.7796, y1: 0.7115 },
+  { key: "NTP - 7", x0: 0.8299, y0: 0.6626, x1: 0.9299, y1: 0.7126 },
+  { key: "NTP - 1", x0: 0.5493, y0: 0.4824, x1: 0.6493, y1: 0.5324 },
+  { key: "NTP - 1A", x0: 0.5489, y0: 0.4435, x1: 0.6489, y1: 0.4935 },
+  { key: "NTP - 3", x0: 0.4434, y0: 0.5645, x1: 0.5434, y1: 0.6145 },
+  { key: "NTP - 5", x0: 0.3244, y0: 0.5663, x1: 0.4244, y1: 0.6163 },
+  { key: "NTP - 7", x0: 0.3217, y0: 0.4768, x1: 0.4217, y1: 0.5268 },
+  { key: "NTP - 6", x0: 0.438, y0: 0.4807, x1: 0.538, y1: 0.5307 },
+  { key: "NTP - 4", x0: 0.3193, y0: 0.6628, x1: 0.4193, y1: 0.7128 },
+  { key: "NTP - 2", x0: 0.509, y0: 0.661, x1: 0.609, y1: 0.711 },
+  { key: "NTP - 1", x0: 0.1751, y0: 0.5231, x1: 0.2751, y1: 0.5731 },
+  { key: "NTP - 3", x0: 0.0558, y0: 0.5408, x1: 0.1558, y1: 0.5908 },
+  { key: "NT, Pour - 5", x0: 0.8327, y0: 0.5854, x1: 0.9327, y1: 0.6354 },
+  { key: "NT, Pour - 6", x0: 0.8308, y0: 0.6322, x1: 0.9308, y1: 0.6822 },
 ];

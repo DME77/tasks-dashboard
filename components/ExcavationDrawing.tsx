@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { EXCAVATION_IMAGE, EXCAVATION_IMAGE_W, EXCAVATION_IMAGE_H } from "./excavationImage";
 import { EXCAVATION_POUR_BOXES } from "./excavationPourBoxes";
-import { EXCAVATION_ZONEMAP, EXCAVATION_ZONE_KEYS } from "./excavationZoneMap";
+// Zone map kept for import compatibility but not used (new drawings use pour-box overlays)
+import { EXCAVATION_ZONEMAP as _EZM, EXCAVATION_ZONE_KEYS as _EZK } from "./excavationZoneMap";
 
 const zoomBtn: React.CSSProperties = {
   padding: "5px 11px", borderRadius: 8, border: "1px solid var(--border)",
@@ -35,7 +36,7 @@ export default function ExcavationDrawing() {
     return () => { alive = false; };
   }, []);
 
-  // Draw drawing, fill each pour ZONE and recolour its label box by live status
+  // Draw drawing + pour-box overlays coloured by live DB status
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -43,74 +44,47 @@ export default function ExcavationDrawing() {
     if (!ctx) return;
 
     const drawing = new Image();
-    const zmap = new Image();
-    let loaded = 0;
     let cancelled = false;
 
-    const render = () => {
+    drawing.onload = () => {
       if (cancelled) return;
       const W = drawing.width, H = drawing.height;
-      canvas.width = W;
-      canvas.height = H;
+      canvas.width = W; canvas.height = H;
       ctx.drawImage(drawing, 0, 0);
-      if (!state) return; // leave plain until state arrives
+      if (!state) return;
 
-      // 1) Recolour each label box fill solidly to its status colour (on original colours)
+      ctx.save();
       for (const box of EXCAVATION_POUR_BOXES) {
-        if (!(box.key in state)) continue;
-        const tgt = COLORS[state[box.key]];
-        const x0 = Math.floor(box.x0 * W), y0 = Math.floor(box.y0 * H);
-        const w = Math.max(1, Math.ceil((box.x1 - box.x0) * W));
-        const h = Math.max(1, Math.ceil((box.y1 - box.y0) * H));
-        const id = ctx.getImageData(x0, y0, w, h);
-        const d = id.data;
-        for (let i = 0; i < d.length; i += 4) {
-          const r = d[i], g = d[i + 1], b = d[i + 2];
-          const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-          const isBlue = b >= mx && b - r > 20 && b - g > 12;
-          const isRed = r >= mx && r - g > 30 && r - b > 30;
-          if ((isBlue || isRed) && mx - mn > 30) {
-            d[i] = tgt[0]; d[i + 1] = tgt[1]; d[i + 2] = tgt[2];
-          }
-        }
-        ctx.putImageData(id, x0, y0);
+        const s = state[box.key];
+        if (!s) continue;
+        const [cr, cg, cb] = COLORS[s];
+        const x = box.x0 * W, y = box.y0 * H;
+        const w = (box.x1 - box.x0) * W, h = (box.y1 - box.y0) * H;
+        ctx.globalAlpha = 0.52;
+        ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
+        ctx.fillRect(x, y, w, h);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = `rgb(${Math.max(0,cr-60)},${Math.max(0,cg-60)},${Math.max(0,cb-60)})`;
+        ctx.lineWidth = Math.max(1, W / 1200);
+        ctx.strokeRect(x, y, w, h);
+        // Zone label
+        const fs = Math.max(10, Math.round(W / 160));
+        ctx.font = `bold ${fs}px sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillStyle = "#fff";
+        ctx.fillText(box.key, x + w / 2, y + h / 2);
       }
-
-      // 2) Fill each pour zone with a translucent status colour (read zone-index map)
-      const off = document.createElement("canvas");
-      off.width = W; off.height = H;
-      const octx = off.getContext("2d");
-      if (octx) {
-        octx.drawImage(zmap, 0, 0, W, H);
-        const zone = octx.getImageData(0, 0, W, H).data;
-        const main = ctx.getImageData(0, 0, W, H);
-        const data = main.data;
-        const a = 0.4;
-        for (let i = 0; i < data.length; i += 4) {
-          const idx = zone[i]; // pour index 1..9 (0 = no zone)
-          if (!idx) continue;
-          const key = EXCAVATION_ZONE_KEYS[idx];
-          const s = key && state[key];
-          if (!s) continue;
-          const c = COLORS[s];
-          data[i] = data[i] * (1 - a) + c[0] * a;
-          data[i + 1] = data[i + 1] * (1 - a) + c[1] * a;
-          data[i + 2] = data[i + 2] * (1 - a) + c[2] * a;
-        }
-        ctx.putImageData(main, 0, 0);
-      }
+      ctx.restore();
     };
 
-    const onLoad = () => { if (++loaded === 2) render(); };
-    drawing.onload = onLoad;
-    zmap.onload = onLoad;
     drawing.src = EXCAVATION_IMAGE;
-    zmap.src = EXCAVATION_ZONEMAP;
     return () => { cancelled = true; };
   }, [state]);
 
-  const doneCount = state ? EXCAVATION_POUR_BOXES.filter((p) => state[p.key] === "completed").length : 0;
-  const total = EXCAVATION_POUR_BOXES.length;
+  // Count unique zone keys (same key may appear at multiple positions on the drawing)
+  const uniqueKeys = [...new Set(EXCAVATION_POUR_BOXES.map((p) => p.key))];
+  const doneCount = state ? uniqueKeys.filter((k) => state[k] === "completed").length : 0;
+  const total = uniqueKeys.length;
 
   return (
     <div style={{

@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { BASEMENT_IMAGE, BASEMENT_IMAGE_W, BASEMENT_IMAGE_H } from "./basementImage";
-import { HGP_RAFT_ZONEMAP, HGP_RAFT_ZONE_KEYS } from "./hgpRaftZoneMap";
+import { RAFT_HGP_POUR_BOXES } from "./raftPourBoxes";
+// Zone map kept for import compatibility but not used (new drawings use pour-box overlays)
+import { HGP_RAFT_ZONEMAP as _HRZM, HGP_RAFT_ZONE_KEYS as _HRZK } from "./hgpRaftZoneMap";
 
 const zoomBtn: React.CSSProperties = {
   padding: "5px 11px", borderRadius: 8, border: "1px solid var(--border)",
@@ -34,7 +36,7 @@ export default function BasementDrawing() {
     return () => { alive = false; };
   }, []);
 
-  // Render drawing + zone overlay
+  // Draw drawing + pour-box overlays coloured by live DB status
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -42,51 +44,45 @@ export default function BasementDrawing() {
     if (!ctx) return;
 
     const drawing = new Image();
-    const zmap    = new Image();
-    let loaded = 0, cancelled = false;
+    let cancelled = false;
 
-    const render = () => {
+    drawing.onload = () => {
       if (cancelled) return;
       const W = drawing.width, H = drawing.height;
       canvas.width = W; canvas.height = H;
       ctx.drawImage(drawing, 0, 0);
       if (!state) return;
 
-      const off  = document.createElement("canvas");
-      off.width  = W; off.height = H;
-      const octx = off.getContext("2d");
-      if (!octx) return;
-      octx.drawImage(zmap, 0, 0, W, H);
-
-      const zone = octx.getImageData(0, 0, W, H).data;
-      const main = ctx.getImageData(0, 0, W, H);
-      const data = main.data;
-      const alpha = 0.38;
-
-      for (let i = 0; i < data.length; i += 4) {
-        const idx = zone[i]; // R channel = zone index
-        if (!idx) continue;
-        const key = HGP_RAFT_ZONE_KEYS[idx];
-        const s   = key && state[key];
+      ctx.save();
+      for (const box of RAFT_HGP_POUR_BOXES) {
+        const s = state[box.key];
         if (!s) continue;
         const [cr, cg, cb] = COLORS[s];
-        data[i]     = data[i]     * (1 - alpha) + cr * alpha;
-        data[i + 1] = data[i + 1] * (1 - alpha) + cg * alpha;
-        data[i + 2] = data[i + 2] * (1 - alpha) + cb * alpha;
+        const x = box.x0 * W, y = box.y0 * H;
+        const w = (box.x1 - box.x0) * W, h = (box.y1 - box.y0) * H;
+        ctx.globalAlpha = 0.52;
+        ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
+        ctx.fillRect(x, y, w, h);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = `rgb(${Math.max(0,cr-60)},${Math.max(0,cg-60)},${Math.max(0,cb-60)})`;
+        ctx.lineWidth = Math.max(1, W / 1200);
+        ctx.strokeRect(x, y, w, h);
+        const fs = Math.max(10, Math.round(W / 160));
+        ctx.font = `bold ${fs}px sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillStyle = "#fff";
+        ctx.fillText(box.key, x + w / 2, y + h / 2);
       }
-      ctx.putImageData(main, 0, 0);
+      ctx.restore();
     };
 
-    const onLoad = () => { if (++loaded === 2) render(); };
-    drawing.onload = onLoad;
-    zmap.onload    = onLoad;
-    drawing.src    = BASEMENT_IMAGE;
-    zmap.src       = HGP_RAFT_ZONEMAP;
+    drawing.src = BASEMENT_IMAGE;
     return () => { cancelled = true; };
   }, [state]);
 
-  const doneCount = state ? Object.values(state).filter((s) => s === "completed").length : 0;
-  const total     = Object.keys(HGP_RAFT_ZONE_KEYS).length;
+  const uniqueKeys = [...new Set(RAFT_HGP_POUR_BOXES.map((p) => p.key))];
+  const doneCount = state ? uniqueKeys.filter((k) => state[k] === "completed").length : 0;
+  const total     = uniqueKeys.length;
 
   return (
     <div style={{
