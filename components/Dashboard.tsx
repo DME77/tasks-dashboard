@@ -33,6 +33,7 @@ import { ATELIER_COLUMNGF_IMAGE, ATELIER_COLUMNGF_IMAGE_W, ATELIER_COLUMNGF_IMAG
 import { ATELIER_SLABB2_IMAGE, ATELIER_SLABB2_IMAGE_W, ATELIER_SLABB2_IMAGE_H } from "./atelierSlabB2Image";
 import { ATELIER_SLABB1_IMAGE, ATELIER_SLABB1_IMAGE_W, ATELIER_SLABB1_IMAGE_H } from "./atelierSlabB1Image";
 import { ATELIER_SLABGF_IMAGE, ATELIER_SLABGF_IMAGE_W, ATELIER_SLABGF_IMAGE_H } from "./atelierSlabGFImage";
+import AtelierColumnDrawing from "./AtelierColumnDrawing";
 import type { Task, ProjectNode, TowerNode, AreaNode, ActiveFilter } from "./types";
 
 /** True when a tower/area name refers to the diaphragm (D) wall, e.g. "D -Wall Work". */
@@ -620,15 +621,15 @@ export default function Dashboard() {
 
                 {/* ── Level-plan drawings — HGP (Schedule) vs Interior (Casting) ── */}
                 {columnB2Selected && !isInterior && <LevelPlanDrawing title="Column Schedule — B2 Level"  icon="🏛️" image={COLUMNB2_IMAGE}         imageW={COLUMNB2_IMAGE_W}         imageH={COLUMNB2_IMAGE_H}         />}
-                {columnB2Selected &&  isInterior && <LevelPlanDrawing title="Column Casting — B2 Level"   icon="🏛️" image={ATELIER_COLUMNB2_IMAGE}  imageW={ATELIER_COLUMNB2_IMAGE_W}  imageH={ATELIER_COLUMNB2_IMAGE_H}  />}
+                {columnB2Selected &&  isInterior && <AtelierColumnDrawing level="b2" title="Column Casting — B2 Level — Homeland Atelier" image={ATELIER_COLUMNB2_IMAGE} imageW={ATELIER_COLUMNB2_IMAGE_W} imageH={ATELIER_COLUMNB2_IMAGE_H} />}
                 {slabB2Selected   && !isInterior && <LevelPlanDrawing title="Slab Schedule — B2 Level"    icon="🧱" image={SLABB2_IMAGE}            imageW={SLABB2_IMAGE_W}            imageH={SLABB2_IMAGE_H}            />}
                 {slabB2Selected   &&  isInterior && <AtelierSlabDrawing level="b2" title="Slab Casting — B2 Level — Homeland Atelier" image={ATELIER_SLABB2_IMAGE} imageW={ATELIER_SLABB2_IMAGE_W} imageH={ATELIER_SLABB2_IMAGE_H} />}
                 {columnB1Selected && !isInterior && <LevelPlanDrawing title="Column Schedule — B1 Level"  icon="🏛️" image={COLUMNB1_IMAGE}         imageW={COLUMNB1_IMAGE_W}         imageH={COLUMNB1_IMAGE_H}         />}
-                {columnB1Selected &&  isInterior && <LevelPlanDrawing title="Column Casting — B1 Level"   icon="🏛️" image={ATELIER_COLUMNB1_IMAGE}  imageW={ATELIER_COLUMNB1_IMAGE_W}  imageH={ATELIER_COLUMNB1_IMAGE_H}  />}
+                {columnB1Selected &&  isInterior && <AtelierColumnDrawing level="b1" title="Column Casting — B1 Level — Homeland Atelier" image={ATELIER_COLUMNB1_IMAGE} imageW={ATELIER_COLUMNB1_IMAGE_W} imageH={ATELIER_COLUMNB1_IMAGE_H} />}
                 {slabB1Selected   && !isInterior && <LevelPlanDrawing title="Slab Schedule — B1 Level"    icon="🧱" image={SLABB1_IMAGE}            imageW={SLABB1_IMAGE_W}            imageH={SLABB1_IMAGE_H}            />}
                 {slabB1Selected   &&  isInterior && <AtelierSlabDrawing level="b1" title="Slab Casting — B1 Level — Homeland Atelier" image={ATELIER_SLABB1_IMAGE} imageW={ATELIER_SLABB1_IMAGE_W} imageH={ATELIER_SLABB1_IMAGE_H} />}
                 {columnGFSelected && !isInterior && <LevelPlanDrawing title="Column Schedule — GF Level"  icon="🏛️" image={COLUMNGF_IMAGE}         imageW={COLUMNGF_IMAGE_W}         imageH={COLUMNGF_IMAGE_H}         />}
-                {columnGFSelected &&  isInterior && <LevelPlanDrawing title="Column Casting — GF Level"   icon="🏛️" image={ATELIER_COLUMNGF_IMAGE}  imageW={ATELIER_COLUMNGF_IMAGE_W}  imageH={ATELIER_COLUMNGF_IMAGE_H}  />}
+                {columnGFSelected &&  isInterior && <AtelierColumnDrawing level="gf" title="Column Casting — GF Level — Homeland Atelier" image={ATELIER_COLUMNGF_IMAGE} imageW={ATELIER_COLUMNGF_IMAGE_W} imageH={ATELIER_COLUMNGF_IMAGE_H} />}
                 {slabGFSelected   && !isInterior && <LevelPlanDrawing title="Slab Schedule — GF Level"    icon="🧱" image={SLABGF_IMAGE}            imageW={SLABGF_IMAGE_W}            imageH={SLABGF_IMAGE_H}            />}
                 {slabGFSelected   &&  isInterior && <AtelierSlabDrawing level="gf" title="Slab Casting — GF Level — Homeland Atelier" image={ATELIER_SLABGF_IMAGE} imageW={ATELIER_SLABGF_IMAGE_W} imageH={ATELIER_SLABGF_IMAGE_H} />}
 

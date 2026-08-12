@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Task } from "./types";
 
 type SortKey =
@@ -13,6 +13,13 @@ type SortKey =
   | "status"
   | "endDate"
   | "completedAt";
+
+type TaskComment = {
+  message:     string;
+  senderName:  string;
+  senderEmail: string;
+  createdAt:   string;
+};
 
 function projOf(t: Task) { return t.SubArea?.Area?.Tower?.Project?.projectName || ""; }
 function towerOf(t: Task) { return t.SubArea?.Area?.Tower?.towerName || ""; }
@@ -37,6 +44,10 @@ function fmtDate(s: string | null | undefined) {
   if (!s) return "—";
   return new Date(s).toLocaleDateString();
 }
+function fmtDateTime(s: string) {
+  const d = new Date(s);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
 
 export default function TaskTable({ tasks }: { tasks: Task[] }) {
   const [q, setQ] = useState("");
@@ -46,6 +57,16 @@ export default function TaskTable({ tasks }: { tasks: Task[] }) {
   const [status, setStatus] = useState<"" | "completed" | "pending" | "overdue" | "hold">("");
   const [sortKey, setSortKey] = useState<SortKey>("endDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  // Comments: map of taskId → latest comment
+  const [comments, setComments] = useState<Record<string, TaskComment>>({});
+
+  useEffect(() => {
+    fetch(`/api/task-comments?t=${Date.now()}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => { if (!d.error) setComments(d); })
+      .catch(() => {});
+  }, []);
 
   const projects = useMemo(() => Array.from(new Set(tasks.map(projOf))).filter(Boolean).sort(), [tasks]);
   const towers = useMemo(
@@ -74,16 +95,16 @@ export default function TaskTable({ tasks }: { tasks: Task[] }) {
     const arr = [...filtered];
     const get = (t: Task): string | number => {
       switch (sortKey) {
-        case "taskName": return t.taskName || "";
-        case "project": return projOf(t);
-        case "tower": return towerOf(t);
-        case "area": return areaOf(t);
-        case "subArea": return subOf(t);
+        case "taskName":   return t.taskName || "";
+        case "project":    return projOf(t);
+        case "tower":      return towerOf(t);
+        case "area":       return areaOf(t);
+        case "subArea":    return subOf(t);
         case "department": return deptOf(t);
-        case "manager": return mgrOf(t);
-        case "status": return statusOf(t);
-        case "endDate": return t.endDate ? new Date(t.endDate).getTime() : Number.POSITIVE_INFINITY;
-        case "completedAt": return t.completedAt ? new Date(t.completedAt).getTime() : Number.POSITIVE_INFINITY;
+        case "manager":    return mgrOf(t);
+        case "status":     return statusOf(t);
+        case "endDate":    return t.endDate    ? new Date(t.endDate).getTime()    : Number.POSITIVE_INFINITY;
+        case "completedAt":return t.completedAt? new Date(t.completedAt).getTime(): Number.POSITIVE_INFINITY;
       }
     };
     arr.sort((a, b) => {
@@ -152,12 +173,14 @@ export default function TaskTable({ tasks }: { tasks: Task[] }) {
               {header("Manager", "manager")}
               {header("Status", "status")}
               {header("Due", "endDate")}
+              <th>Latest Comment</th>
               {header("Completed", "completedAt")}
             </tr>
           </thead>
           <tbody>
             {sorted.map((t) => {
-              const s = statusOf(t);
+              const s   = statusOf(t);
+              const cmt = comments[t.taskId];
               return (
                 <tr key={t.taskId}>
                   <td>{t.taskName}</td>
@@ -174,12 +197,34 @@ export default function TaskTable({ tasks }: { tasks: Task[] }) {
                     {s === "hold"      && <span className="badge amber">On Hold</span>}
                   </td>
                   <td>{fmtDate(t.endDate)}</td>
+                  <td style={{ maxWidth: 220 }}>
+                    {cmt ? (
+                      <div title={`${cmt.senderName} — ${new Date(cmt.createdAt).toLocaleString()}\n\n${cmt.message}`}>
+                        <div style={{
+                          fontSize: 12,
+                          color: "var(--text)",
+                          overflow: "hidden",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          lineHeight: 1.4,
+                        }}>
+                          {cmt.message}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+                          {cmt.senderName} · {fmtDateTime(cmt.createdAt)}
+                        </div>
+                      </div>
+                    ) : (
+                      <span style={{ color: "var(--muted)", fontSize: 12 }}>—</span>
+                    )}
+                  </td>
                   <td>{fmtDate(t.completedAt)}</td>
                 </tr>
               );
             })}
             {sorted.length === 0 && (
-              <tr><td colSpan={10} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>No matching tasks.</td></tr>
+              <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--muted)", padding: 24 }}>No matching tasks.</td></tr>
             )}
           </tbody>
         </table>
