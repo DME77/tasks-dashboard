@@ -16,6 +16,7 @@ import RaftSequenceDrawing from "./RaftSequenceDrawing";
 import ColumnSlabDrawing from "./ColumnSlabDrawing";
 import RetainingWallDrawing from "./RetainingWallDrawing";
 import LevelPlanDrawing from "./LevelPlanDrawing";
+import AtelierSlabDrawing from "./AtelierSlabDrawing";
 import MaterialConsumption from "./MaterialConsumption";
 import { SLABB2_IMAGE, SLABB2_IMAGE_W, SLABB2_IMAGE_H } from "./slabB2Image";
 import { SLABB1_IMAGE, SLABB1_IMAGE_W, SLABB1_IMAGE_H } from "./slabB1Image";
@@ -621,15 +622,15 @@ export default function Dashboard() {
                 {columnB2Selected && !isInterior && <LevelPlanDrawing title="Column Schedule — B2 Level"  icon="🏛️" image={COLUMNB2_IMAGE}         imageW={COLUMNB2_IMAGE_W}         imageH={COLUMNB2_IMAGE_H}         />}
                 {columnB2Selected &&  isInterior && <LevelPlanDrawing title="Column Casting — B2 Level"   icon="🏛️" image={ATELIER_COLUMNB2_IMAGE}  imageW={ATELIER_COLUMNB2_IMAGE_W}  imageH={ATELIER_COLUMNB2_IMAGE_H}  />}
                 {slabB2Selected   && !isInterior && <LevelPlanDrawing title="Slab Schedule — B2 Level"    icon="🧱" image={SLABB2_IMAGE}            imageW={SLABB2_IMAGE_W}            imageH={SLABB2_IMAGE_H}            />}
-                {slabB2Selected   &&  isInterior && <LevelPlanDrawing title="Slab Casting — B2 Level"     icon="🧱" image={ATELIER_SLABB2_IMAGE}    imageW={ATELIER_SLABB2_IMAGE_W}    imageH={ATELIER_SLABB2_IMAGE_H}    />}
+                {slabB2Selected   &&  isInterior && <AtelierSlabDrawing level="b2" title="Slab Casting — B2 Level — Homeland Atelier" image={ATELIER_SLABB2_IMAGE} imageW={ATELIER_SLABB2_IMAGE_W} imageH={ATELIER_SLABB2_IMAGE_H} />}
                 {columnB1Selected && !isInterior && <LevelPlanDrawing title="Column Schedule — B1 Level"  icon="🏛️" image={COLUMNB1_IMAGE}         imageW={COLUMNB1_IMAGE_W}         imageH={COLUMNB1_IMAGE_H}         />}
                 {columnB1Selected &&  isInterior && <LevelPlanDrawing title="Column Casting — B1 Level"   icon="🏛️" image={ATELIER_COLUMNB1_IMAGE}  imageW={ATELIER_COLUMNB1_IMAGE_W}  imageH={ATELIER_COLUMNB1_IMAGE_H}  />}
                 {slabB1Selected   && !isInterior && <LevelPlanDrawing title="Slab Schedule — B1 Level"    icon="🧱" image={SLABB1_IMAGE}            imageW={SLABB1_IMAGE_W}            imageH={SLABB1_IMAGE_H}            />}
-                {slabB1Selected   &&  isInterior && <LevelPlanDrawing title="Slab Casting — B1 Level"     icon="🧱" image={ATELIER_SLABB1_IMAGE}    imageW={ATELIER_SLABB1_IMAGE_W}    imageH={ATELIER_SLABB1_IMAGE_H}    />}
+                {slabB1Selected   &&  isInterior && <AtelierSlabDrawing level="b1" title="Slab Casting — B1 Level — Homeland Atelier" image={ATELIER_SLABB1_IMAGE} imageW={ATELIER_SLABB1_IMAGE_W} imageH={ATELIER_SLABB1_IMAGE_H} />}
                 {columnGFSelected && !isInterior && <LevelPlanDrawing title="Column Schedule — GF Level"  icon="🏛️" image={COLUMNGF_IMAGE}         imageW={COLUMNGF_IMAGE_W}         imageH={COLUMNGF_IMAGE_H}         />}
                 {columnGFSelected &&  isInterior && <LevelPlanDrawing title="Column Casting — GF Level"   icon="🏛️" image={ATELIER_COLUMNGF_IMAGE}  imageW={ATELIER_COLUMNGF_IMAGE_W}  imageH={ATELIER_COLUMNGF_IMAGE_H}  />}
                 {slabGFSelected   && !isInterior && <LevelPlanDrawing title="Slab Schedule — GF Level"    icon="🧱" image={SLABGF_IMAGE}            imageW={SLABGF_IMAGE_W}            imageH={SLABGF_IMAGE_H}            />}
-                {slabGFSelected   &&  isInterior && <LevelPlanDrawing title="Slab Casting — GF Level"     icon="🧱" image={ATELIER_SLABGF_IMAGE}    imageW={ATELIER_SLABGF_IMAGE_W}    imageH={ATELIER_SLABGF_IMAGE_H}    />}
+                {slabGFSelected   &&  isInterior && <AtelierSlabDrawing level="gf" title="Slab Casting — GF Level — Homeland Atelier" image={ATELIER_SLABGF_IMAGE} imageW={ATELIER_SLABGF_IMAGE_W} imageH={ATELIER_SLABGF_IMAGE_H} />}
 
                 <Charts tasks={filteredTasks} theme={theme} />
               </>
